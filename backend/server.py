@@ -36,7 +36,29 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 
-# Define Models
+# Define Request/Response Models
+class GenerateInitialRequest(BaseModel):
+    prompt: str
+    session_id: Optional[str] = None
+
+class GenerateInitialResponse(BaseModel):
+    session_id: str
+    html_content: str
+    message: str
+
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+    current_html: str
+
+class ChatResponse(BaseModel):
+    html_content: str
+    message: str
+
+class DownloadPDFRequest(BaseModel):
+    html_content: str
+    filename: Optional[str] = "document.pdf"
+
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
     
