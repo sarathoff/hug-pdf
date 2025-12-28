@@ -260,8 +260,13 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus: 
+    - "Initial PDF Generation Flow"
+    - "HTML Preview Display"
+    - "Chat Functionality"
+    - "PDF Download Feature"
+  stuck_tasks:
+    - "Initial PDF Generation Flow"
   test_all: false
   test_priority: "high_first"
 
