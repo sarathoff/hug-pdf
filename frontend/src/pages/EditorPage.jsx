@@ -175,6 +175,12 @@ const EditorPage = () => {
             Home
           </Button>
           <h1 className="text-xl font-semibold text-gray-800">PDF Editor</h1>
+          {user && (
+            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-lg">
+              <CreditCard className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-semibold text-blue-900">{user.credits} Credits</span>
+            </div>
+          )}
         </div>
         <Button
           onClick={handleDownloadPDF}
