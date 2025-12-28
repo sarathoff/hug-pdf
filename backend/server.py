@@ -74,6 +74,96 @@ class StatusCheckCreate(BaseModel):
 async def root():
     return {"message": "PDF Generator API - Ready"}
 
+@api_router.post("/generate-initial", response_model=GenerateInitialResponse)
+async def generate_initial(request: GenerateInitialRequest):
+    """Generate initial HTML content from user prompt"""
+    try:
+        # Generate HTML using Gemini
+        result = gemini_service.generate_html_from_prompt(request.prompt)
+        
+        # Create or get session
+        session_id = request.session_id or str(uuid.uuid4())
+        
+        # Create session document
+        session = Session(
+            session_id=session_id,
+            messages=[
+                Message(role="user", content=request.prompt),
+                Message(role="assistant", content=result["message"])
+            ],
+            current_html=result["html"]
+        )
+        
+        # Store in MongoDB
+        await db.sessions.update_one(
+            {"session_id": session_id},
+            {"$set": session.dict()},
+            upsert=True
+        )
+        
+        return GenerateInitialResponse(
+            session_id=session_id,
+            html_content=result["html"],
+            message=result["message"]
+        )
+    except Exception as e:
+        logging.error(f"Error in generate_initial: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """Handle chat messages to modify HTML"""
+    try:
+        # Get session from database
+        session_doc = await db.sessions.find_one({"session_id": request.session_id})
+        if not session_doc:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Modify HTML using Gemini
+        result = gemini_service.modify_html(request.current_html, request.message)
+        
+        # Update session
+        session = Session(**session_doc)
+        session.messages.append(Message(role="user", content=request.message))
+        session.messages.append(Message(role="assistant", content=result["message"]))
+        session.current_html = result["html"]
+        
+        # Store updated session
+        await db.sessions.update_one(
+            {"session_id": request.session_id},
+            {"$set": session.dict()}
+        )
+        
+        return ChatResponse(
+            html_content=result["html"],
+            message=result["message"]
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error in chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/download-pdf")
+async def download_pdf(request: DownloadPDFRequest):
+    """Convert HTML to PDF and return as download"""
+    try:
+        # Generate PDF
+        pdf_bytes = pdf_service.generate_pdf(request.html_content)
+        
+        # Return as downloadable file
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={request.filename}",
+                "Content-Type": "application/pdf"
+            }
+        )
+    except Exception as e:
+        logging.error(f"Error in download_pdf: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
     status_dict = input.model_dump()
