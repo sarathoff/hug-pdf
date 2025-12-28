@@ -198,7 +198,21 @@ async def chat(request: ChatRequest):
 async def download_pdf(request: DownloadPDFRequest):
     """Convert HTML to PDF and return as download"""
     try:
-
+        # Generate PDF
+        pdf_bytes = await pdf_service.generate_pdf(request.html_content)
+        
+        # Return as downloadable file
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={request.filename}",
+                "Content-Type": "application/pdf"
+            }
+        )
+    except Exception as e:
+        logging.error(f"Error in download_pdf: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Authentication Routes
 @api_router.post("/auth/register", response_model=UserResponse)
