@@ -170,6 +170,168 @@ async def chat(request: ChatRequest):
 async def download_pdf(request: DownloadPDFRequest):
     """Convert HTML to PDF and return as download"""
     try:
+
+
+# Authentication Routes
+@api_router.post("/auth/register", response_model=UserResponse)
+async def register(user_data: UserCreate):
+    """Register new user with 3 free credits"""
+    try:
+        # Check if user exists
+        existing_user = await db.users.find_one({'email': user_data.email})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Create new user
+        user = User(
+            email=user_data.email,
+            password_hash=auth_service.hash_password(user_data.password),
+            credits=3,
+            plan="free"
+        )
+        
+        await db.users.insert_one(user.dict())
+        
+        return UserResponse(
+            user_id=user.user_id,
+            email=user.email,
+            credits=user.credits,
+            plan=user.plan,
+            early_adopter=user.early_adopter
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error in register: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/auth/login")
+async def login(credentials: UserLogin):
+    """Login and get JWT token"""
+    try:
+        user = await db.users.find_one({'email': credentials.email})
+        if not user or not auth_service.verify_password(credentials.password, user['password_hash']):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+        token = auth_service.create_token(user['user_id'], user['email'])
+        
+        return {
+            'token': token,
+            'user': UserResponse(
+                user_id=user['user_id'],
+                email=user['email'],
+                credits=user['credits'],
+                plan=user['plan'],
+                early_adopter=user.get('early_adopter', False)
+            )
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error in login: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/auth/me", response_model=UserResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    """Get current user info"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    return UserResponse(
+        user_id=current_user['user_id'],
+        email=current_user['email'],
+        credits=current_user['credits'],
+        plan=current_user['plan'],
+        early_adopter=current_user.get('early_adopter', False)
+    )
+
+# Payment Routes
+@api_router.post("/payment/create-checkout")
+async def create_checkout(
+    purchase: PurchaseRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create payment checkout session"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        result = await payment_service.create_checkout_session(
+            current_user['user_id'],
+            purchase.plan,
+            current_user['email']
+        )
+        return result
+    except Exception as e:
+        logging.error(f"Error creating checkout: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/payment/success")
+async def payment_success(
+    plan: str,
+    user_id: str
+):
+    """Handle successful payment"""
+    try:
+        user = await db.users.find_one({'user_id': user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Update credits based on plan
+        credits_to_add = 150 if plan == 'founders' else 100
+        early_adopter = plan == 'founders'
+        
+        await db.users.update_one(
+            {'user_id': user_id},
+            {
+                '$set': {
+                    'plan': plan,
+                    'early_adopter': early_adopter,
+                    'updated_at': datetime.utcnow()
+                },
+                '$inc': {'credits': credits_to_add}
+            }
+        )
+        
+        return {'success': True, 'credits_added': credits_to_add}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error in payment success: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/pricing")
+async def get_pricing():
+    """Get pricing plans"""
+    return {
+        'plans': [
+            {
+                'id': 'free',
+                'name': 'Free Starter',
+                'price': 0,
+                'billing': 'one-time',
+                'credits': 3,
+                'features': ['3 Credits', 'To try the "Aha!" moment']
+            },
+            {
+                'id': 'founders',
+                'name': 'Founder\'s Pack',
+                'price': 19,
+                'billing': 'one-time',
+                'credits': 150,
+                'features': ['150 Credits', 'Early Adopter badge', 'Best for quick cash']
+            },
+            {
+                'id': 'pro',
+                'name': 'Pro Monthly',
+                'price': 9,
+                'billing': 'monthly',
+                'credits': 100,
+                'features': ['100 Credits every month', 'Custom Templates']
+            }
+        ]
+    }
+
         # Generate PDF
         pdf_bytes = await pdf_service.generate_pdf(request.html_content)
         
