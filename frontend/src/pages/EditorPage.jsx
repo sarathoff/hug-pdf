@@ -3,7 +3,10 @@ import { useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Send, Download, Loader2, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { mockGeneratePDF, mockChatResponse } from '../utils/mockData';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 const EditorPage = () => {
   const location = useLocation();
@@ -12,6 +15,7 @@ const EditorPage = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [htmlContent, setHtmlContent] = useState('');
+  const [sessionId, setSessionId] = useState(null);
   const messagesEndRef = useRef(null);
   const iframeRef = useRef(null);
 
@@ -34,36 +38,66 @@ const EditorPage = () => {
     setMessages([{ role: 'user', content: prompt }]);
     setLoading(true);
 
-    // Mock delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const response = await axios.post(`${API}/generate-initial`, {
+        prompt: prompt
+      });
 
-    const generatedHTML = mockGeneratePDF(prompt);
-    setHtmlContent(generatedHTML);
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: 'assistant',
-        content: "I've generated your PDF content. You can see the preview on the right. Feel free to ask me to modify anything!",
-      },
-    ]);
-    setLoading(false);
+      setSessionId(response.data.session_id);
+      setHtmlContent(response.data.html_content);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: response.data.message,
+        },
+      ]);
+    } catch (error) {
+      console.error('Error generating initial content:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Sorry, there was an error generating your PDF. Please try again.',
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !sessionId) return;
 
     const userMessage = input.trim();
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
-    // Mock delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const response = await axios.post(`${API}/chat`, {
+        session_id: sessionId,
+        message: userMessage,
+        current_html: htmlContent
+      });
 
-    const response = mockChatResponse(userMessage, htmlContent);
-    setHtmlContent(response.html);
-    setMessages((prev) => [...prev, { role: 'assistant', content: response.message }]);
-    setLoading(false);
+      setHtmlContent(response.data.html_content);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: response.data.message }
+      ]);
+    } catch (error) {
+      console.error('Error in chat:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Sorry, there was an error processing your request. Please try again.',
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -73,15 +107,34 @@ const EditorPage = () => {
     }
   };
 
-  const handleDownloadPDF = () => {
-    // Mock download - will be implemented with backend
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'document.html';
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadPDF = async () => {
+    if (!htmlContent) return;
+
+    try {
+      const response = await axios.post(
+        `${API}/download-pdf`,
+        {
+          html_content: htmlContent,
+          filename: 'document.pdf'
+        },
+        {
+          responseType: 'blob'
+        }
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'document.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Error downloading PDF. Please try again.');
+    }
   };
 
   return (
