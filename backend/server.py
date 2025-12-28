@@ -149,7 +149,7 @@ async def download_pdf(request: DownloadPDFRequest):
     """Convert HTML to PDF and return as download"""
     try:
         # Generate PDF
-        pdf_bytes = pdf_service.generate_pdf(request.html_content)
+        pdf_bytes = await pdf_service.generate_pdf(request.html_content)
         
         # Return as downloadable file
         return Response(
