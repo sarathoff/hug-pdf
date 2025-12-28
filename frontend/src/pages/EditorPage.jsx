@@ -209,7 +209,7 @@ const EditorPage = () => {
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={!input.trim() || loading}
+                disabled={!input.trim() || loading || !sessionId}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white p-3 rounded-xl"
               >
                 <Send className="w-5 h-5" />
