@@ -42,7 +42,7 @@ api_router = APIRouter(prefix="/api")
 
 # Dependency to get current user from token
 async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
-    \"\"\"Get current user from JWT token\"\"\"
+    """Get current user from JWT token"""
     if not authorization or not authorization.startswith('Bearer '):
         return None
     
