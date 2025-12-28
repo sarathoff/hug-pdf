@@ -97,9 +97,34 @@ async def root():
     return {"message": "PDF Generator API - Ready"}
 
 @api_router.post("/generate-initial", response_model=GenerateInitialResponse)
-async def generate_initial(request: GenerateInitialRequest):
+async def generate_initial(
+    request: GenerateInitialRequest,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
     """Generate initial HTML content from user prompt"""
     try:
+        # Check if user has credits (authenticated users only)
+        if current_user:
+            if current_user['credits'] <= 0:
+                raise HTTPException(
+                    status_code=402,
+                    detail="Insufficient credits. Please purchase more credits to continue."
+                )
+            
+            # Deduct 1 credit
+            await db.users.update_one(
+                {'user_id': current_user['user_id']},
+                {
+                    '$inc': {'credits': -1},
+                    '$set': {'updated_at': datetime.utcnow()}
+                }
+            )
+            
+            remaining_credits = current_user['credits'] - 1
+        else:
+            # Allow guests to use with limitations (optional)
+            remaining_credits = None
+        
         # Generate HTML using Gemini
         result = gemini_service.generate_html_from_prompt(request.prompt)
         
@@ -126,8 +151,11 @@ async def generate_initial(request: GenerateInitialRequest):
         return GenerateInitialResponse(
             session_id=session_id,
             html_content=result["html"],
-            message=result["message"]
+            message=result["message"],
+            credits_remaining=remaining_credits
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Error in generate_initial: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
