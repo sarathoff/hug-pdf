@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Header, Depends
 from fastapi.responses import Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -14,7 +14,10 @@ from datetime import datetime, timezone
 # Import services
 from services.gemini_service import GeminiService
 from services.pdf_service import PDFService
+from services.auth_service import AuthService
+from services.payment_service import PaymentService
 from models.session import Session, Message
+from models.user import User, UserCreate, UserLogin, UserResponse
 
 
 ROOT_DIR = Path(__file__).parent
@@ -28,6 +31,8 @@ db = client[os.environ['DB_NAME']]
 # Initialize services
 gemini_service = GeminiService()
 pdf_service = PDFService()
+auth_service = AuthService()
+payment_service = PaymentService()
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -35,6 +40,19 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Dependency to get current user from token
+async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    \"\"\"Get current user from JWT token\"\"\"
+    if not authorization or not authorization.startswith('Bearer '):
+        return None
+    
+    token = authorization.replace('Bearer ', '')
+    payload = auth_service.verify_token(token)
+    if not payload:
+        return None
+    
+    user = await db.users.find_one({'user_id': payload['user_id']})
+    return user
 
 # Define Request/Response Models
 class GenerateInitialRequest(BaseModel):
@@ -45,6 +63,7 @@ class GenerateInitialResponse(BaseModel):
     session_id: str
     html_content: str
     message: str
+    credits_remaining: Optional[int] = None
 
 class ChatRequest(BaseModel):
     session_id: str
@@ -58,6 +77,9 @@ class ChatResponse(BaseModel):
 class DownloadPDFRequest(BaseModel):
     html_content: str
     filename: Optional[str] = "document.pdf"
+
+class PurchaseRequest(BaseModel):
+    plan: str  # 'founders' or 'pro'
 
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
