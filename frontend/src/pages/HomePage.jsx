@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Sparkles, FileText, Briefcase, BarChart3, Receipt } from 'lucide-react';
+import { Sparkles, FileText, Briefcase, BarChart3, Receipt, CreditCard, User, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
   const [prompt, setPrompt] = useState('');
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const handleCreatePDF = () => {
     if (prompt.trim()) {
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
+      if (user.credits <= 0) {
+        navigate('/pricing');
+        return;
+      }
       navigate('/editor', { state: { initialPrompt: prompt } });
     }
   };
@@ -29,9 +39,62 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Top Navigation */}
+      <div className="absolute top-0 right-0 p-6 flex items-center gap-4">
+        {user ? (
+          <>
+            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
+              <CreditCard className="w-5 h-5 text-blue-600" />
+              <span className="font-semibold text-gray-900">{user.credits} Credits</span>
+              {user.early_adopter && (
+                <span className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-2 py-1 rounded-full">
+                  Early Adopter
+                </span>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/pricing')}
+              className="flex items-center gap-2"
+            >
+              <CreditCard className="w-4 h-4" />
+              Buy Credits
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
+              className="flex items-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/pricing')}
+              className="flex items-center gap-2"
+            >
+              Pricing
+            </Button>
+            <Button
+              onClick={() => navigate('/auth')}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+            >
+              <User className="w-4 h-4 mr-2" />
+              Sign In
+            </Button>
+          </>
+        )}
+      </div>
+
       <div className="max-w-5xl mx-auto px-6 py-16">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-16 mt-12">
           <h1 className="text-6xl font-bold mb-6 tracking-tight">
             Create Beautiful PDFs
             <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
