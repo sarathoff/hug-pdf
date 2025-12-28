@@ -12,6 +12,7 @@ const API = `${BACKEND_URL}/api`;
 const EditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, token, refreshUser } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,11 +22,16 @@ const EditorPage = () => {
   const iframeRef = useRef(null);
 
   useEffect(() => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    
     const initialPrompt = location.state?.initialPrompt;
     if (initialPrompt && messages.length === 0) {
       handleInitialGeneration(initialPrompt);
     }
-  }, [location.state]);
+  }, [location.state, user]);
 
   useEffect(() => {
     scrollToBottom();
