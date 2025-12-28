@@ -46,9 +46,12 @@ const EditorPage = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API}/generate-initial`, {
-        prompt: prompt
-      });
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.post(
+        `${API}/generate-initial`,
+        { prompt: prompt },
+        { headers }
+      );
 
       setSessionId(response.data.session_id);
       setHtmlContent(response.data.html_content);
@@ -59,15 +62,28 @@ const EditorPage = () => {
           content: response.data.message,
         },
       ]);
+      
+      // Refresh user data to update credits
+      if (refreshUser) {
+        await refreshUser();
+      }
     } catch (error) {
       console.error('Error generating initial content:', error);
+      const errorMsg = error.response?.status === 402 
+        ? 'Insufficient credits. Please purchase more credits to continue.'
+        : 'Sorry, there was an error generating your PDF. Please try again.';
+      
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Sorry, there was an error generating your PDF. Please try again.',
+          content: errorMsg,
         },
       ]);
+      
+      if (error.response?.status === 402) {
+        setTimeout(() => navigate('/pricing'), 2000);
+      }
     } finally {
       setLoading(false);
     }
