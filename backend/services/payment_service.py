@@ -8,7 +8,7 @@ class PaymentService:
     def __init__(self):
         self.dodo_api_key = os.environ.get('DODO_PAYMENTS_API_KEY')
         self.dodo_public_key = os.environ.get('DODO_PAYMENTS_PUBLIC_KEY')
-        self.base_url = 'https://api.dodopayments.com/v1'
+        self.base_url = 'https://api.dodopayments.com'
         
     async def create_checkout_session(self, user_id: str, plan: str, email: str) -> dict:
         """Create Dodo Payments checkout session"""
@@ -36,38 +36,47 @@ class PaymentService:
             raise ValueError(f"Invalid plan: {plan}")
         
         plan_info = plans[plan]
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
         
         try:
-            # Create Dodo Payments checkout session
+            # Create Dodo Payments checkout session using the correct endpoint
             headers = {
                 'Authorization': f'Bearer {self.dodo_api_key}',
                 'Content-Type': 'application/json'
             }
             
             payload = {
-                'product_id': plan_info['product_id'],
-                'customer_email': email,
-                'success_url': f'{os.environ.get("FRONTEND_URL", "http://localhost:3000")}/payment/success?plan={plan}&user_id={user_id}',
-                'cancel_url': f'{os.environ.get("FRONTEND_URL", "http://localhost:3000")}/pricing',
+                'type': 'session',
+                'product_cart': [
+                    {
+                        'product_id': plan_info['product_id'],
+                        'quantity': 1
+                    }
+                ],
+                'customer': {
+                    'email': email
+                },
+                'return_url': f'{frontend_url}/payment/success?plan={plan}&user_id={user_id}',
                 'metadata': {
                     'user_id': user_id,
                     'plan': plan,
-                    'credits': plan_info['credits']
+                    'credits': str(plan_info['credits'])
                 }
             }
             
             response = requests.post(
-                f'{self.base_url}/checkout/sessions',
+                f'{self.base_url}/checkouts',
                 json=payload,
-                headers=headers
+                headers=headers,
+                timeout=10
             )
             
-            if response.status_code == 200 or response.status_code == 201:
+            if response.status_code in [200, 201]:
                 data = response.json()
                 logger.info(f"Created Dodo checkout session for {email}, plan: {plan}")
                 return {
-                    'checkout_url': data.get('checkout_url') or data.get('url'),
-                    'session_id': data.get('id') or data.get('session_id')
+                    'checkout_url': data.get('checkout_url'),
+                    'session_id': data.get('id') or data.get('checkout_id')
                 }
             else:
                 logger.error(f"Dodo API error: {response.status_code} - {response.text}")
