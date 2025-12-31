@@ -348,28 +348,21 @@ async def get_pricing():
     return {
         'plans': [
             {
-                'id': 'free',
-                'name': 'Free Starter',
-                'price': 0,
-                'billing': 'one-time',
-                'credits': 3,
-                'features': ['3 Credits', 'To try the "Aha!" moment']
-            },
-            {
-                'id': 'founders',
-                'name': 'Founder\'s Pack',
-                'price': 19,
-                'billing': 'one-time',
-                'credits': 150,
-                'features': ['150 Credits', 'Early Adopter badge', 'Best for quick cash']
-            },
-            {
                 'id': 'pro',
                 'name': 'Pro Monthly',
                 'price': 9,
                 'billing': 'monthly',
                 'credits': 100,
-                'features': ['100 Credits every month', 'Custom Templates']
+                'features': ['100 Credits every month', 'AI-powered PDF generation', 'Unlimited downloads', 'Priority support']
+            },
+            {
+                'id': 'lifetime',
+                'name': 'Lifetime Access',
+                'price': 39,
+                'billing': 'one-time',
+                'credits': 500,
+                'popular': True,
+                'features': ['500 Credits', 'Lifetime access', 'All future updates', 'Premium support', 'Early access to new features']
             }
         ]
     }
