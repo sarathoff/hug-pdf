@@ -33,11 +33,6 @@ const PricingPage = () => {
       return;
     }
 
-    if (planId === 'free') {
-      navigate('/');
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await axios.post(
@@ -46,7 +41,7 @@ const PricingPage = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      // For demo: simulate payment success
+      // Redirect to Dodo Payments checkout
       window.location.href = response.data.checkout_url;
     } catch (error) {
       console.error('Error creating checkout:', error);
@@ -57,16 +52,7 @@ const PricingPage = () => {
   };
 
   const getPlanIcon = (planId) => {
-    switch (planId) {
-      case 'free':
-        return <Zap className="w-8 h-8" />;
-      case 'founders':
-        return <Crown className="w-8 h-8" />;
-      case 'pro':
-        return <Zap className="w-8 h-8" />;
-      default:
-        return <Zap className="w-8 h-8" />;
-    }
+    return planId === 'lifetime' ? <Crown className="w-8 h-8" /> : <Zap className="w-8 h-8" />;
   };
 
   return (
@@ -96,20 +82,23 @@ const PricingPage = () => {
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             1 credit = 1 PDF. Choose the plan that works for you.
           </p>
+          <p className="text-lg text-blue-600 font-medium mt-4">
+            New users get 3 free credits to try!
+          </p>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {plans.map((plan) => (
             <div
               key={plan.id}
               className={`relative bg-white rounded-2xl shadow-lg p-8 border-2 ${
-                plan.id === 'founders'
+                plan.popular
                   ? 'border-purple-500 shadow-purple-200'
                   : 'border-gray-200'
               }`}
             >
-              {plan.id === 'founders' && (
+              {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                   <span className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-1 rounded-full text-sm font-medium">
                     Most Popular
@@ -119,7 +108,7 @@ const PricingPage = () => {
 
               {/* Icon */}
               <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 ${
-                plan.id === 'founders'
+                plan.popular
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                   : 'bg-gray-100 text-gray-700'
               }`}>
@@ -135,7 +124,7 @@ const PricingPage = () => {
                 {plan.billing === 'monthly' && (
                   <span className="text-gray-600 ml-2">/ month</span>
                 )}
-                {plan.billing === 'one-time' && plan.price > 0 && (
+                {plan.billing === 'one-time' && (
                   <span className="text-gray-600 ml-2">one-time</span>
                 )}
               </div>
@@ -163,7 +152,7 @@ const PricingPage = () => {
                 onClick={() => handlePurchase(plan.id)}
                 disabled={loading || (user && user.plan === plan.id)}
                 className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 ${
-                  plan.id === 'founders'
+                  plan.popular
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
                     : 'bg-gray-900 hover:bg-gray-800 text-white'
                 }`}
@@ -172,7 +161,7 @@ const PricingPage = () => {
                   'Current Plan'
                 ) : (
                   <>
-                    {plan.price === 0 ? 'Get Started' : 'Purchase'}
+                    Purchase Now
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}
@@ -182,9 +171,12 @@ const PricingPage = () => {
         </div>
 
         {/* Info Section */}
-        <div className="mt-16 text-center">
+        <div className="mt-16 text-center space-y-4">
           <p className="text-gray-600 text-lg">
-            Have questions? <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">Contact us</a>
+            Have questions? <button onClick={() => navigate('/contact')} className="text-blue-600 hover:text-blue-700 font-medium">Contact us</button>
+          </p>
+          <p className="text-sm text-gray-500">
+            Secure payments powered by Dodo Payments
           </p>
         </div>
       </div>
