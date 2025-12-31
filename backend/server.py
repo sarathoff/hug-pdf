@@ -320,22 +320,22 @@ async def payment_success(
             raise HTTPException(status_code=404, detail="User not found")
         
         # Update credits based on plan
-        credits_to_add = 150 if plan == 'founders' else 100
-        early_adopter = plan == 'founders'
+        credits_to_add = 500 if plan == 'lifetime' else 100
+        is_lifetime = plan == 'lifetime'
         
         await db.users.update_one(
             {'user_id': user_id},
             {
                 '$set': {
                     'plan': plan,
-                    'early_adopter': early_adopter,
+                    'lifetime_access': is_lifetime,
                     'updated_at': datetime.utcnow()
                 },
                 '$inc': {'credits': credits_to_add}
             }
         )
         
-        return {'success': True, 'credits_added': credits_to_add}
+        return {'success': True, 'credits_added': credits_to_add, 'plan': plan}
     except HTTPException:
         raise
     except Exception as e:
