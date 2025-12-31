@@ -151,20 +151,20 @@ const HomePage = () => {
         </div>
 
         {/* Footer */}
-        <div className=\"mt-20 pt-12 border-t border-gray-200\">
-          <div className=\"flex flex-col md:flex-row items-center justify-between gap-6\">
-            <div className=\"flex items-center gap-6\">
-              <button onClick={() => navigate('/about')} className=\"text-gray-600 hover:text-gray-900 font-medium\">
+        <div className="mt-20 pt-12 border-t border-gray-200">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-6">
+              <button onClick={() => navigate('/about')} className="text-gray-600 hover:text-gray-900 font-medium">
                 About
               </button>
-              <button onClick={() => navigate('/pricing')} className=\"text-gray-600 hover:text-gray-900 font-medium\">
+              <button onClick={() => navigate('/pricing')} className="text-gray-600 hover:text-gray-900 font-medium">
                 Pricing
               </button>
-              <button onClick={() => navigate('/contact')} className=\"text-gray-600 hover:text-gray-900 font-medium\">
+              <button onClick={() => navigate('/contact')} className="text-gray-600 hover:text-gray-900 font-medium">
                 Contact
               </button>
             </div>
-            <p className=\"text-sm text-gray-500\">
+            <p className="text-sm text-gray-500">
               © 2024 PDF Generator. All rights reserved.
             </p>
           </div>
