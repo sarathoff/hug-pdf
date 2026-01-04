@@ -65,8 +65,17 @@ class PDFService:
                     return pdf_bytes
                 else:
                     logger.error(f"pdflatex failed to create PDF.")
-                    logger.error(f"STDOUT: {result.stdout[:1000]}")
-                    logger.error(f"STDERR: {result.stderr[:1000]}")
+                    logger.error(f"Return code: {result.returncode}")
+                    logger.error(f"STDOUT (full): {result.stdout}")
+                    logger.error(f"STDERR (full): {result.stderr}")
+                    logger.error(f"LaTeX content (first 500 chars): {latex_content[:500]}")
+                    
+                    # Check if .log file exists for more details
+                    log_file = tmpdir_path / "document.log"
+                    if log_file.exists():
+                        log_content = log_file.read_text(encoding='utf-8', errors='ignore')
+                        logger.error(f"LaTeX log file (last 2000 chars): {log_content[-2000:]}")
+                    
                     raise Exception(f"LaTeX compilation failed. Check the LaTeX syntax and ensure all required packages are installed.")
                     
             except FileNotFoundError:

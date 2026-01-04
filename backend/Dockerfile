@@ -21,6 +21,11 @@ RUN apt-get update && apt-get install -y \
     texlive-latex-base \
     texlive-latex-extra \
     texlive-fonts-recommended \
+    texlive-fonts-extra \
+    texlive-xetex \
+    texlive-luatex \
+    texlive-science \
+    cm-super \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
