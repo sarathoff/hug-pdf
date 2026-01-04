@@ -23,6 +23,7 @@ const EditorPage = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(null);
   const [showSource, setShowSource] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const iframeRef = useRef(null);
   const previewTimeoutRef = useRef(null);
@@ -215,9 +216,19 @@ const EditorPage = () => {
   };
 
   const handleDownloadPDF = async () => {
-    if (!latexContent && !htmlContent) return;
+    console.log('Download button clicked');
+    console.log('latexContent:', latexContent ? `${latexContent.substring(0, 100)}...` : 'null');
+    console.log('htmlContent:', htmlContent ? `${htmlContent.substring(0, 100)}...` : 'null');
 
+    if (!latexContent && !htmlContent) {
+      console.error('No content available for download');
+      alert('No content available. Please generate a document first.');
+      return;
+    }
+
+    setDownloadLoading(true);
     try {
+      console.log('Sending download request to:', `${API}/download-pdf`);
       const response = await axios.post(
         `${API}/download-pdf`,
         {
@@ -226,12 +237,15 @@ const EditorPage = () => {
           filename: 'document.pdf'
         },
         {
-          responseType: 'blob'
+          responseType: 'blob',
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
         }
       );
 
+      console.log('Download response received, size:', response.data.size);
+
       // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', 'document.pdf');
@@ -239,10 +253,28 @@ const EditorPage = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+
+      console.log('Download completed successfully');
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      const errorMsg = error.response?.data?.detail || 'Error downloading PDF. Please try again.';
-      alert(errorMsg);
+      console.error('Error response:', error.response);
+
+      // Try to read error message from blob if it's a text response
+      if (error.response?.data instanceof Blob) {
+        const text = await error.response.data.text();
+        console.error('Error details:', text);
+        try {
+          const errorData = JSON.parse(text);
+          alert(errorData.detail || 'Error downloading PDF. Please try again.');
+        } catch {
+          alert(text || 'Error downloading PDF. Please try again.');
+        }
+      } else {
+        const errorMsg = error.response?.data?.detail || error.message || 'Error downloading PDF. Please try again.';
+        alert(errorMsg);
+      }
+    } finally {
+      setDownloadLoading(false);
     }
   };
 
@@ -282,11 +314,20 @@ const EditorPage = () => {
           </Button>
           <Button
             onClick={handleDownloadPDF}
-            disabled={!htmlContent}
+            disabled={!htmlContent || downloadLoading}
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center gap-2"
           >
-            <Download className="w-4 h-4" />
-            Download PDF
+            {downloadLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                Download PDF
+              </>
+            )}
           </Button>
         </div>
       </div>
