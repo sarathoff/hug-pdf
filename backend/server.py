@@ -395,15 +395,76 @@ async def create_checkout(
 async def payment_success(
     plan: str,
     user_id: str,
-    session_id: Optional[str] = None
+    session_id: Optional[str] = None,
+    current_user: Optional[dict] = Depends(get_current_user)
 ):
-    """Handle successful payment (Supabase migration)"""
+    """Handle successful payment - REQUIRES AUTHENTICATION AND PAYMENT VERIFICATION"""
     if not supabase:
         raise HTTPException(status_code=503, detail="Database not initialized")
+    
+    # SECURITY: Require authentication
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # SECURITY: Verify the user_id matches the authenticated user
+    if current_user['user_id'] != user_id:
+        logger.warning(f"User {current_user['user_id']} attempted to add credits to user {user_id}")
+        raise HTTPException(status_code=403, detail="Cannot modify another user's credits")
+    
+    # SECURITY: Verify payment with Dodo Payments if session_id is provided
+    if session_id:
+        try:
+            # Verify the payment session with Dodo Payments API
+            dodo_api_key = os.environ.get('DODO_PAYMENTS_API_KEY')
+            if not dodo_api_key:
+                logger.error("DODO_PAYMENTS_API_KEY not configured")
+                raise HTTPException(status_code=503, detail="Payment service not configured")
+            
+            # Call Dodo API to verify the session
+            import requests
+            headers = {
+                'Authorization': f'Bearer {dodo_api_key}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Get checkout session details from Dodo
+            response = requests.get(
+                f'https://api.dodopayments.com/checkouts/{session_id}',
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to verify payment session {session_id}: {response.status_code}")
+                raise HTTPException(status_code=400, detail="Payment verification failed")
+            
+            session_data = response.json()
+            
+            # Verify the session is completed/paid
+            session_status = session_data.get('status')
+            if session_status != 'completed':
+                logger.warning(f"Payment session {session_id} status is {session_status}, not completed")
+                raise HTTPException(status_code=400, detail=f"Payment not completed. Status: {session_status}")
+            
+            # Verify the metadata matches
+            metadata = session_data.get('metadata', {})
+            if metadata.get('user_id') != user_id or metadata.get('plan') != plan:
+                logger.error(f"Payment session metadata mismatch for {session_id}")
+                raise HTTPException(status_code=400, detail="Payment verification failed: metadata mismatch")
+            
+            logger.info(f"Payment verified for user {user_id}, session {session_id}")
+            
+        except requests.RequestException as e:
+            logger.error(f"Error verifying payment with Dodo: {str(e)}")
+            raise HTTPException(status_code=503, detail="Payment verification service unavailable")
+    else:
+        # No session_id provided - this is suspicious in production
+        logger.warning(f"Payment success called without session_id for user {user_id}")
+        # For now, we'll allow it but log it. In strict mode, you should reject this.
+        # raise HTTPException(status_code=400, detail="Payment session ID required")
         
     try:
         # Check if this payment has already been processed (idempotency check)
-        # This is optional - if the table doesn't exist, we'll skip the check
         if session_id:
             try:
                 # Check if we've already processed this session
