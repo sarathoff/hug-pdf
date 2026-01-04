@@ -11,7 +11,7 @@ const API = `${BACKEND_URL}/api`;
 const PaymentSuccessPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  const { refreshUser, token } = useAuth();
   const [loading, setLoading] = React.useState(true);
   const [credits, setCredits] = React.useState(0);
   const [plan, setPlan] = React.useState('');
@@ -29,7 +29,8 @@ const PaymentSuccessPage = () => {
       }
 
       const response = await axios.post(`${API}/payment/success`, null, {
-        params: params
+        params: params,
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
       setCredits(response.data.credits_added);
@@ -40,10 +41,11 @@ const PaymentSuccessPage = () => {
       }
     } catch (error) {
       console.error('Error processing payment:', error);
+      alert('Payment verification failed. Please contact support if you were charged.');
     } finally {
       setLoading(false);
     }
-  }, [refreshUser]);
+  }, [refreshUser, token]);
 
   useEffect(() => {
     const plan = searchParams.get('plan');
