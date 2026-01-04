@@ -33,7 +33,10 @@ const ContactPage = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-800">Contact Us</h1>
+          <div className="flex items-center gap-4">
+            <img src="/logo.png" alt="HugPDF Logo" className="h-8 w-auto" />
+            <h1 className="text-xl font-semibold text-gray-800">Contact Us</h1>
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -47,19 +50,6 @@ const ContactPage = () => {
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-16">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-6">
-            Get in
-            <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Touch
-            </span>
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Have questions or feedback? We'd love to hear from you!
-          </p>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {/* Contact Info */}
           <div className="bg-white rounded-2xl shadow-lg p-8">
@@ -70,9 +60,11 @@ const ContactPage = () => {
                 <Mail className="w-5 h-5 text-blue-600 mt-1" />
                 <div>
                   <h3 className="font-semibold text-gray-900">Email</h3>
-                  <p className="text-gray-600">contact@hugpdf.app</p>
+                  <a href="mailto:sarathramesh.mailbox@gmail.com" className="text-blue-600 hover:text-blue-700">
+                    sarathramesh.mailbox@gmail.com
+                  </a>
                   <p className="text-sm text-gray-500 mt-1">
-                    We'll respond within 24-48 hours
+                    I'll respond as soon as possible!
                   </p>
                 </div>
               </div>
@@ -83,16 +75,24 @@ const ContactPage = () => {
                   <h3 className="font-semibold text-gray-900">Creator</h3>
                   <p className="text-gray-600">Sarath</p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Developer & Designer
+                    ECE Engineering Student & Developer
                   </p>
+                  <a
+                    href="https://github.com/sarathoff"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-700 text-sm mt-1 inline-block"
+                  >
+                    GitHub: @sarathoff
+                  </a>
                 </div>
               </div>
             </div>
 
             <div className="mt-8 p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-700">
-                <strong>Note:</strong> This is a demonstration project. For actual inquiries,
-                please use the contact form or reach out via the provided email.
+                <strong>Have suggestions or feedback?</strong> I'd love to hear from you!
+                Send me an email with your ideas, bug reports, or feature requests.
               </p>
             </div>
           </div>
