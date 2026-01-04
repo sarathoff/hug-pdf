@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    container_name: pdf-generator-backend
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/pdf_app
+      - DB_NAME=pdf_app
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - CORS_ORIGINS=http://localhost
+    depends_on:
+      - mongo
+    networks:
+      - pdf-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: pdf-generator-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - pdf-network
+
+  mongo:
+    image: mongo:latest
+    container_name: pdf-generator-db
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - pdf-network
+
+networks:
+  pdf-network:
+    driver: bridge
+
+volumes:
+  mongo_data:

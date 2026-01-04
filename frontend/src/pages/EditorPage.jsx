@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Send, Download, Loader2, Home, CreditCard } from 'lucide-react';
+import { Send, Download, Loader2, Home, CreditCard, LogOut, Eye, Code } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -12,36 +12,26 @@ const API = `${BACKEND_URL}/api`;
 const EditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, token, refreshUser } = useAuth();
+  const { user, token, refreshUser, logout } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [htmlContent, setHtmlContent] = useState('');
+  const [latexContent, setLatexContent] = useState('');
   const [sessionId, setSessionId] = useState(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(null);
+  const [showSource, setShowSource] = useState(false);
   const messagesEndRef = useRef(null);
   const iframeRef = useRef(null);
+  const previewTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-    
-    const initialPrompt = location.state?.initialPrompt;
-    if (initialPrompt && messages.length === 0) {
-      handleInitialGeneration(initialPrompt);
-    }
-  }, [location.state, user]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  const handleInitialGeneration = async (prompt) => {
+  const handleInitialGeneration = useCallback(async (prompt) => {
     setMessages([{ role: 'user', content: prompt }]);
     setLoading(true);
 
@@ -55,6 +45,9 @@ const EditorPage = () => {
 
       setSessionId(response.data.session_id);
       setHtmlContent(response.data.html_content);
+      if (response.data.latex_content) {
+        setLatexContent(response.data.latex_content);
+      }
       setMessages((prev) => [
         ...prev,
         {
@@ -62,17 +55,17 @@ const EditorPage = () => {
           content: response.data.message,
         },
       ]);
-      
+
       // Refresh user data to update credits
       if (refreshUser) {
         await refreshUser();
       }
     } catch (error) {
       console.error('Error generating initial content:', error);
-      const errorMsg = error.response?.status === 402 
+      const errorMsg = error.response?.status === 402
         ? 'Insufficient credits. Please purchase more credits to continue.'
         : 'Sorry, there was an error generating your PDF. Please try again.';
-      
+
       setMessages((prev) => [
         ...prev,
         {
@@ -80,14 +73,102 @@ const EditorPage = () => {
           content: errorMsg,
         },
       ]);
-      
+
       if (error.response?.status === 402) {
         setTimeout(() => navigate('/pricing'), 2000);
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, navigate, refreshUser]);
+
+  const generatePreview = useCallback(async (content) => {
+    if (!content) {
+      setPdfPreviewUrl(null);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      return;
+    }
+
+    // Set loading immediately (before debounce)
+    setPreviewLoading(true);
+    setPreviewError(null);
+
+    // Clear any existing timeout
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+    }
+
+    // Debounce preview generation
+    previewTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await axios.post(
+          `${API}/preview-pdf`,
+          {
+            latex_content: content,
+            html_content: content
+          },
+          {
+            responseType: 'blob'
+          }
+        );
+
+        // Create new blob URL
+        const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+
+        // Revoke old URL to prevent memory leaks (using functional update to avoid dependency)
+        setPdfPreviewUrl((prevUrl) => {
+          if (prevUrl) {
+            window.URL.revokeObjectURL(prevUrl);
+          }
+          return url;
+        });
+
+        setPreviewError(null);
+        setPreviewLoading(false);
+      } catch (error) {
+        console.error('Error generating preview:', error);
+        setPreviewError(error.response?.data?.detail || 'Failed to generate preview. Please check your LaTeX syntax.');
+        setPdfPreviewUrl(null);
+        setPreviewLoading(false);
+      }
+    }, 1500); // 1.5 second debounce
+  }, []); // No dependencies needed
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    const initialPrompt = location.state?.initialPrompt;
+    if (initialPrompt && messages.length === 0) {
+      handleInitialGeneration(initialPrompt);
+    }
+  }, [location.state, user, navigate, messages.length, handleInitialGeneration]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Generate preview when content changes
+  useEffect(() => {
+    if (htmlContent) {
+      generatePreview(htmlContent);
+    }
+  }, [htmlContent, generatePreview]);
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) {
+        window.URL.revokeObjectURL(pdfPreviewUrl);
+      }
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, [pdfPreviewUrl]);
 
   const handleSendMessage = async () => {
     if (!input.trim() || loading || !sessionId) return;
@@ -105,6 +186,9 @@ const EditorPage = () => {
       });
 
       setHtmlContent(response.data.html_content);
+      if (response.data.latex_content) {
+        setLatexContent(response.data.latex_content);
+      }
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: response.data.message }
@@ -131,12 +215,13 @@ const EditorPage = () => {
   };
 
   const handleDownloadPDF = async () => {
-    if (!htmlContent) return;
+    if (!latexContent && !htmlContent) return;
 
     try {
       const response = await axios.post(
         `${API}/download-pdf`,
         {
+          latex_content: latexContent,
           html_content: htmlContent,
           filename: 'document.pdf'
         },
@@ -156,9 +241,12 @@ const EditorPage = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Error downloading PDF. Please try again.');
+      const errorMsg = error.response?.data?.detail || 'Error downloading PDF. Please try again.';
+      alert(errorMsg);
     }
   };
+
+
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -182,14 +270,25 @@ const EditorPage = () => {
             </div>
           )}
         </div>
-        <Button
-          onClick={handleDownloadPDF}
-          disabled={!htmlContent}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" />
-          Download PDF
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={logout}
+            className="text-gray-600 hover:text-red-600 hover:bg-red-50"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+          <Button
+            onClick={handleDownloadPDF}
+            disabled={!htmlContent}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Download PDF
+          </Button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -204,11 +303,10 @@ const EditorPage = () => {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.role === 'user'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-800'
+                    }`}
                 >
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                 </div>
@@ -249,19 +347,88 @@ const EditorPage = () => {
 
         {/* Preview Panel */}
         <div className="w-1/2 bg-gray-100 p-6 overflow-hidden">
-          <div className="h-full bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="h-full bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
             {htmlContent ? (
-              <iframe
-                ref={iframeRef}
-                srcDoc={htmlContent}
-                title="PDF Preview"
-                className="w-full h-full border-0"
-                sandbox="allow-same-origin"
-              />
+              <>
+                <div className="bg-gray-800 text-white px-4 py-2 flex items-center justify-between">
+                  <span className="text-sm font-mono">
+                    {showSource ? 'LaTeX Source Code' : 'PDF Preview'}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSource(!showSource)}
+                    className="text-white hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    {showSource ? (
+                      <>
+                        <Eye className="w-4 h-4" />
+                        Show Preview
+                      </>
+                    ) : (
+                      <>
+                        <Code className="w-4 h-4" />
+                        Show Source
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {showSource ? (
+                  <textarea
+                    value={htmlContent}
+                    readOnly
+                    className="flex-1 w-full p-4 font-mono text-sm border-0 resize-none focus:outline-none bg-gray-50"
+                    style={{ fontFamily: 'Consolas, Monaco, "Courier New", monospace' }}
+                  />
+                ) : (
+                  <div className="flex-1 relative">
+                    {previewLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+                        <div className="text-center">
+                          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+                          <p className="text-sm text-gray-600">Generating preview...</p>
+                        </div>
+                      </div>
+                    )}
+                    {previewError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-red-50 z-10">
+                        <div className="text-center p-6">
+                          <p className="text-sm text-red-600 mb-2">Preview Error</p>
+                          <p className="text-xs text-red-500">{previewError}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => generatePreview(htmlContent)}
+                            className="mt-4"
+                          >
+                            Retry
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {pdfPreviewUrl && !previewLoading && !previewError && (
+                      <iframe
+                        ref={iframeRef}
+                        src={pdfPreviewUrl}
+                        className="w-full h-full border-0"
+                        title="PDF Preview"
+                      />
+                    )}
+                    {!pdfPreviewUrl && !previewLoading && !previewError && (
+                      <div className="h-full flex items-center justify-center text-gray-400">
+                        <div className="text-center">
+                          <p className="text-lg font-medium">Preview will appear here</p>
+                          <p className="text-sm mt-2">Waiting for content...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="h-full flex items-center justify-center text-gray-400">
                 <div className="text-center">
-                  <p className="text-lg font-medium">Preview will appear here</p>
+                  <p className="text-lg font-medium">PDF preview will appear here</p>
                   <p className="text-sm mt-2">Start by describing what you want to create</p>
                 </div>
               </div>
