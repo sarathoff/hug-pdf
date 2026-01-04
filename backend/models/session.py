@@ -13,6 +13,7 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     messages: List[Message] = Field(default_factory=list)
     current_html: Optional[str] = None
+    current_latex: Optional[str] = None
     
     class Config:
         json_encoders = {

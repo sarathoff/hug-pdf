@@ -2,9 +2,17 @@ from fastapi import FastAPI, APIRouter, HTTPException, Header, Depends
 from fastapi.responses import Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from supabase import create_client, Client
 import os
 import logging
+
+# Configure logging at startup
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
@@ -18,15 +26,32 @@ from services.auth_service import AuthService
 from services.payment_service import PaymentService
 from models.session import Session, Message
 from models.user import User, UserCreate, UserLogin, UserResponse
-
+from dodopayments import DodoPayments
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+# Load .env from project root (d:\pdf\.env) instead of backend folder
+load_dotenv(ROOT_DIR.parent / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Initialize Dodo Client
+try:
+    dodo_client = DodoPayments(
+        bearer_token=os.environ.get('DODO_PAYMENTS_API_KEY')
+    )
+except Exception as e:
+    logging.warning(f"Failed to initialize Dodo Client: {e}")
+    dodo_client = None
+
+# Supabase connection
+supabase_url = os.environ.get("SUPABASE_URL")
+supabase_key = os.environ.get("SUPABASE_KEY")
+
+try:
+    if not supabase_url or not supabase_key:
+        raise ValueError("Supabase keys missing")
+    supabase: Client = create_client(supabase_url, supabase_key)
+except Exception as e:
+    logging.warning(f"Failed to initialize Supabase Client: {e}")
+    supabase = None
 
 # Initialize services
 gemini_service = GeminiService()
@@ -42,7 +67,7 @@ api_router = APIRouter(prefix="/api")
 
 # Dependency to get current user from token
 async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
-    """Get current user from JWT token"""
+    """Get current user from JWT token using Supabase for persistence"""
     if not authorization or not authorization.startswith('Bearer '):
         return None
     
@@ -51,8 +76,11 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
     if not payload:
         return None
     
-    user = await db.users.find_one({'user_id': payload['user_id']})
-    return user
+    if not supabase:
+        return None
+        
+    response = supabase.table("users").select("*").eq("user_id", payload['user_id']).execute()
+    return response.data[0] if response.data else None
 
 # Define Request/Response Models
 class GenerateInitialRequest(BaseModel):
@@ -62,6 +90,7 @@ class GenerateInitialRequest(BaseModel):
 class GenerateInitialResponse(BaseModel):
     session_id: str
     html_content: str
+    latex_content: Optional[str] = None
     message: str
     credits_remaining: Optional[int] = None
 
@@ -72,17 +101,19 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     html_content: str
+    latex_content: Optional[str] = None
     message: str
 
 class DownloadPDFRequest(BaseModel):
-    html_content: str
+    latex_content: Optional[str] = None
+    html_content: Optional[str] = None  # Fallback
     filename: Optional[str] = "document.pdf"
 
 class PurchaseRequest(BaseModel):
     plan: str  # 'founders' or 'pro'
 
 class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
+    model_config = ConfigDict(extra="ignore")
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
@@ -91,10 +122,10 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
-# Add your routes to the router instead of directly to app
+# Routes
 @api_router.get("/")
 async def root():
-    return {"message": "PDF Generator API - Ready"}
+    return {"message": "HugPDF API - Ready"}
 
 @api_router.post("/generate-initial", response_model=GenerateInitialResponse)
 async def generate_initial(
@@ -103,27 +134,8 @@ async def generate_initial(
 ):
     """Generate initial HTML content from user prompt"""
     try:
-        # Check if user has credits (authenticated users only)
-        if current_user:
-            if current_user['credits'] <= 0:
-                raise HTTPException(
-                    status_code=402,
-                    detail="Insufficient credits. Please purchase more credits to continue."
-                )
-            
-            # Deduct 1 credit
-            await db.users.update_one(
-                {'user_id': current_user['user_id']},
-                {
-                    '$inc': {'credits': -1},
-                    '$set': {'updated_at': datetime.utcnow()}
-                }
-            )
-            
-            remaining_credits = current_user['credits'] - 1
-        else:
-            # Allow guests to use with limitations (optional)
-            remaining_credits = None
+        # Note: Credits are now deducted on PDF download, not on generation
+        remaining_credits = current_user['credits'] if current_user else None
         
         # Generate HTML using Gemini
         result = gemini_service.generate_html_from_prompt(request.prompt)
@@ -138,19 +150,21 @@ async def generate_initial(
                 Message(role="user", content=request.prompt),
                 Message(role="assistant", content=result["message"])
             ],
-            current_html=result["html"]
+            current_html=result["html"],
+            current_latex=result.get("latex")
         )
         
-        # Store in MongoDB
-        await db.sessions.update_one(
-            {"session_id": session_id},
-            {"$set": session.dict()},
-            upsert=True
-        )
+        # Store in Supabase
+        if not supabase:
+             logging.warning("Supabase client not initialized, skipping DB storage")
+        else:
+            data = session.model_dump(mode='json')
+            supabase.table("sessions").upsert(data).execute()
         
         return GenerateInitialResponse(
             session_id=session_id,
             html_content=result["html"],
+            latex_content=result.get("latex"),
             message=result["message"],
             credits_remaining=remaining_credits
         )
@@ -164,28 +178,35 @@ async def generate_initial(
 async def chat(request: ChatRequest):
     """Handle chat messages to modify HTML"""
     try:
-        # Get session from database
-        session_doc = await db.sessions.find_one({"session_id": request.session_id})
-        if not session_doc:
+        # Get session from Supabase
+        response = supabase.table("sessions").select("*").eq("session_id", request.session_id).execute()
+        
+        if not response.data:
             raise HTTPException(status_code=404, detail="Session not found")
+            
+        session_data = response.data[0]
         
-        # Modify HTML using Gemini
-        result = gemini_service.modify_html(request.current_html, request.message)
+        # Modify HTML and LaTeX using Gemini
+        result = gemini_service.modify_html(
+            request.current_html, 
+            request.message,
+            current_latex=session_data.get('current_latex')
+        )
         
-        # Update session
-        session = Session(**session_doc)
+        session = Session(**session_data)
         session.messages.append(Message(role="user", content=request.message))
         session.messages.append(Message(role="assistant", content=result["message"]))
         session.current_html = result["html"]
+        if "latex" in result:
+            session.current_latex = result["latex"]
         
         # Store updated session
-        await db.sessions.update_one(
-            {"session_id": request.session_id},
-            {"$set": session.dict()}
-        )
+        updated_data = session.model_dump(mode='json')
+        supabase.table("sessions").update(updated_data).eq("session_id", request.session_id).execute()
         
         return ChatResponse(
             html_content=result["html"],
+            latex_content=result.get("latex"),
             message=result["message"]
         )
     except HTTPException:
@@ -194,14 +215,67 @@ async def chat(request: ChatRequest):
         logging.error(f"Error in chat: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.post("/download-pdf")
-async def download_pdf(request: DownloadPDFRequest):
-    """Convert HTML to PDF and return as download"""
+@api_router.post("/preview-pdf")
+async def preview_pdf(request: DownloadPDFRequest):
+    """Generate PDF preview from LaTeX content (no authentication required)"""
     try:
-        # Generate PDF
-        pdf_bytes = await pdf_service.generate_pdf(request.html_content)
+        # Use LaTeX if available, otherwise fall back to HTML
+        if request.latex_content:
+            pdf_bytes = await pdf_service.generate_pdf(request.latex_content)
+        elif request.html_content:
+            # Treat html_content as LaTeX for backward compatibility
+            pdf_bytes = await pdf_service.generate_pdf(request.html_content)
+        else:
+            raise HTTPException(status_code=400, detail="No content provided for PDF generation")
+            
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Type": "application/pdf",
+                "Cache-Control": "no-cache"
+            }
+        )
+    except Exception as e:
+        logging.error(f"Error in preview_pdf: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/download-pdf")
+async def download_pdf(
+    request: DownloadPDFRequest,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Convert LaTeX to PDF and return as download"""
+    try:
+        # Check if user has credits (authenticated users only)
+        if current_user:
+            if current_user['credits'] <= 0:
+                raise HTTPException(
+                    status_code=402,
+                    detail="Insufficient PDFs remaining. Please purchase more to continue downloading."
+                )
+            
+            # Deduct 1 credit (1 PDF) in Supabase
+            if supabase:
+                supabase.table("users").update({
+                    'credits': current_user['credits'] - 1,
+                    'updated_at': datetime.now(timezone.utc).isoformat()
+                }).eq('user_id', current_user['user_id']).execute()
+                
+                logger.info(f"Deducted 1 PDF credit from user {current_user['user_id']}. Remaining: {current_user['credits'] - 1}")
         
-        # Return as downloadable file
+        # Use LaTeX if available, otherwise fall back to HTML (though HTML won't work well)
+        if request.latex_content:
+            pdf_bytes = await pdf_service.generate_pdf(request.latex_content)
+        elif request.html_content:
+            # For backward compatibility, but this won't work well
+            raise HTTPException(
+                status_code=400,
+                detail="LaTeX content required for PDF generation. Please regenerate your document."
+            )
+        else:
+            raise HTTPException(status_code=400, detail="No content provided for PDF generation")
+            
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
@@ -214,25 +288,29 @@ async def download_pdf(request: DownloadPDFRequest):
         logging.error(f"Error in download_pdf: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Authentication Routes
+# Authentication Routes (Migrated to Supabase)
 @api_router.post("/auth/register", response_model=UserResponse)
 async def register(user_data: UserCreate):
-    """Register new user with 3 free credits"""
+    """Register new user with 3 free PDFs"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Database not initialized")
+        
     try:
         # Check if user exists
-        existing_user = await db.users.find_one({'email': user_data.email})
-        if existing_user:
+        response = supabase.table("users").select("*").eq('email', user_data.email).execute()
+        if response.data:
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        # Create new user
+        # Create new user with 3 free PDFs
         user = User(
             email=user_data.email,
             password_hash=auth_service.hash_password(user_data.password),
-            credits=3,
+            credits=3,  # 3 free PDF downloads
             plan="free"
         )
         
-        await db.users.insert_one(user.dict())
+        # Supabase insert
+        supabase.table("users").insert(user.model_dump(mode='json')).execute()
         
         return UserResponse(
             user_id=user.user_id,
@@ -250,8 +328,13 @@ async def register(user_data: UserCreate):
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     """Login and get JWT token"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Database not initialized")
+        
     try:
-        user = await db.users.find_one({'email': credentials.email})
+        response = supabase.table("users").select("*").eq('email', credentials.email).execute()
+        user = response.data[0] if response.data else None
+        
         if not user or not auth_service.verify_password(credentials.password, user['password_hash']):
             raise HTTPException(status_code=401, detail="Invalid email or password")
         
@@ -311,30 +394,65 @@ async def create_checkout(
 @api_router.post("/payment/success")
 async def payment_success(
     plan: str,
-    user_id: str
+    user_id: str,
+    session_id: Optional[str] = None
 ):
-    """Handle successful payment"""
+    """Handle successful payment (Supabase migration)"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Database not initialized")
+        
     try:
-        user = await db.users.find_one({'user_id': user_id})
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        # Check if this payment has already been processed (idempotency check)
+        # This is optional - if the table doesn't exist, we'll skip the check
+        if session_id:
+            try:
+                # Check if we've already processed this session
+                existing = supabase.table("payment_sessions").select("*").eq("session_id", session_id).execute()
+                if existing.data:
+                    logger.warning(f"Payment session {session_id} already processed, skipping credit addition")
+                    return {
+                        'success': True, 
+                        'message': 'Payment already processed',
+                        'credits_added': 0,
+                        'plan': plan
+                    }
+            except Exception as e:
+                # Table might not exist - log and continue
+                logger.info(f"Could not check payment_sessions table (may not exist): {e}")
         
         # Update credits based on plan
-        credits_to_add = 500 if plan == 'lifetime' else 100
+        # Credits now represent PDF downloads: 1 credit = 1 PDF
+        credits_to_add = 2000 if plan == 'lifetime' else 50  # Lifetime: 2000 PDFs, Pro: 50 PDFs/month
         is_lifetime = plan == 'lifetime'
         
-        await db.users.update_one(
-            {'user_id': user_id},
-            {
-                '$set': {
-                    'plan': plan,
-                    'lifetime_access': is_lifetime,
-                    'updated_at': datetime.utcnow()
-                },
-                '$inc': {'credits': credits_to_add}
-            }
-        )
+        # Get current user for increment
+        resp = supabase.table("users").select("credits").eq("user_id", user_id).execute()
+        if not resp.data:
+            raise HTTPException(status_code=404, detail="User not found")
         
+        new_credits = resp.data[0]['credits'] + credits_to_add
+        
+        supabase.table("users").update({
+            'plan': plan,
+            'credits': new_credits,
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }).eq('user_id', user_id).execute()
+        
+        # Record this payment session to prevent duplicates (optional)
+        if session_id:
+            try:
+                supabase.table("payment_sessions").insert({
+                    'session_id': session_id,
+                    'user_id': user_id,
+                    'plan': plan,
+                    'credits_added': credits_to_add,
+                    'processed_at': datetime.now(timezone.utc).isoformat()
+                }).execute()
+            except Exception as e:
+                # Table might not exist - log but don't fail
+                logger.info(f"Could not record payment session (table may not exist): {e}")
+        
+        logger.info(f"Added {credits_to_add} credits to user {user_id} for plan {plan}")
         return {'success': True, 'credits_added': credits_to_add, 'plan': plan}
     except HTTPException:
         raise
@@ -352,39 +470,63 @@ async def get_pricing():
                 'name': 'Pro Monthly',
                 'price': 9,
                 'billing': 'monthly',
-                'credits': 100,
-                'features': ['100 Credits every month', 'AI-powered PDF generation', 'Unlimited downloads', 'Priority support']
+                'credits': 50,
+                'features': ['50 PDF downloads every month', 'AI-powered PDF generation', 'Unlimited document editing', 'Priority support']
             },
             {
                 'id': 'lifetime',
                 'name': 'Lifetime Access',
                 'price': 39,
                 'billing': 'one-time',
-                'credits': 500,
+                'credits': 2000,
                 'popular': True,
-                'features': ['500 Credits', 'Lifetime access', 'All future updates', 'Premium support', 'Early access to new features']
+                'features': ['2000 PDF downloads', 'Lifetime access', 'All future updates', 'Premium support', 'Early access to new features']
             }
         ]
     }
 
+@api_router.post("/status", response_model=StatusCheck)
+async def create_status_check(input: StatusCheckCreate):
+    status_dict = input.model_dump()
+    status_obj = StatusCheck(**status_dict)
+    doc = status_obj.model_dump(mode='json')
+    supabase.table("status_checks").insert(doc).execute()
+    return status_obj
+
+@api_router.get("/status", response_model=List[StatusCheck])
+async def get_status_checks():
+    response = supabase.table("status_checks").select("*").limit(100).order('timestamp', desc=True).execute()
+    return response.data
+
+class CheckoutRequest(BaseModel):
+    productId: str
+    email: str
+
+@api_router.post("/checkout")
+async def create_checkout_session(request: CheckoutRequest):
+    """Old checkout endpoint for backward compatibility"""
+    if not dodo_client:
+        raise HTTPException(status_code=503, detail="Payment service not initialized")
+    try:
+        session = dodo_client.checkout_sessions.create(
+            product_cart=[{'product_id': request.productId, 'quantity': 1}],
+            customer={'email': request.email},
+            return_url=f"{os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')[0]}/success"
+        )
+        return {"url": session.checkout_url}
+    except Exception as e:
+        logging.error(f"Dodo Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Checkout failed")
+
 # Include the router in the main app
 app.include_router(api_router)
 
+origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+logging.info(f"Active CORS Origins: {origins}")
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()

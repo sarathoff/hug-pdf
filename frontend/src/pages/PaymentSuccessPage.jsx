@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Home } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -16,24 +16,25 @@ const PaymentSuccessPage = () => {
   const [credits, setCredits] = React.useState(0);
   const [plan, setPlan] = React.useState('');
 
-  useEffect(() => {
-    const plan = searchParams.get('plan');
-    const userId = searchParams.get('user_id');
-
-    if (plan && userId) {
-      handlePaymentSuccess(plan, userId);
-    }
-  }, [searchParams]);
-
-  const handlePaymentSuccess = async (planId, userId) => {
+  const handlePaymentSuccess = useCallback(async (planId, userId, sessionId) => {
     try {
+      const params = {
+        plan: planId,
+        user_id: userId
+      };
+
+      // Include session_id if available for idempotency
+      if (sessionId) {
+        params.session_id = sessionId;
+      }
+
       const response = await axios.post(`${API}/payment/success`, null, {
-        params: { plan: planId, user_id: userId }
+        params: params
       });
 
       setCredits(response.data.credits_added);
       setPlan(response.data.plan);
-      
+
       if (refreshUser) {
         await refreshUser();
       }
@@ -42,7 +43,17 @@ const PaymentSuccessPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshUser]);
+
+  useEffect(() => {
+    const plan = searchParams.get('plan');
+    const userId = searchParams.get('user_id');
+    const sessionId = searchParams.get('session_id');
+
+    if (plan && userId) {
+      handlePaymentSuccess(plan, userId, sessionId);
+    }
+  }, [searchParams, handlePaymentSuccess]);
 
   if (loading) {
     return (

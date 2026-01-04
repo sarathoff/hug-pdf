@@ -1,20 +1,31 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Mail, Send, User, MessageSquare, Home } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Home, Mail, MapPin, Phone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const ContactPage = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = React.useState({
+  const [formData, setFormData] = useState({
     name: '',
     email: '',
-    message: ''
+    subject: '',
+    message: '',
   });
+
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Thank you for contacting us! We\'ll get back to you soon.');
-    setFormData({ name: '', email: '', message: '' });
+    console.log('Form submitted:', formData);
+    setSubmitted(true);
+    setTimeout(() => setSubmitted(false), 3000);
   };
 
   return (
@@ -35,99 +46,141 @@ const ContactPage = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div className="max-w-4xl mx-auto px-6 py-16">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold mb-6">
+            Get in
+            <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Touch
+            </span>
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Have questions or feedback? We'd love to hear from you!
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {/* Contact Info */}
-          <div>
-            <h2 className="text-4xl font-bold mb-6">Get in Touch</h2>
-            <p className="text-lg text-gray-600 mb-8">
-              Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
-            </p>
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h2>
 
-            <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <Mail className="w-6 h-6 text-blue-600" />
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Mail className="w-5 h-5 text-blue-600 mt-1" />
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
-                  <p className="text-gray-600">support@pdfgenerator.com</p>
+                  <h3 className="font-semibold text-gray-900">Email</h3>
+                  <p className="text-gray-600">contact@hugpdf.app</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    We'll respond within 24-48 hours
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <Phone className="w-6 h-6 text-blue-600" />
-                </div>
+              <div className="flex items-start gap-3">
+                <User className="w-5 h-5 text-blue-600 mt-1" />
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                  <p className="text-gray-600">+1 (555) 123-4567</p>
+                  <h3 className="font-semibold text-gray-900">Creator</h3>
+                  <p className="text-gray-600">Sarath</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Developer & Designer
+                  </p>
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <MapPin className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Office</h3>
-                  <p className="text-gray-600">123 AI Street, Tech City, TC 12345</p>
-                </div>
-              </div>
+            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-gray-700">
+                <strong>Note:</strong> This is a demonstration project. For actual inquiries,
+                please use the contact form or reach out via the provided email.
+              </p>
             </div>
           </div>
 
           {/* Contact Form */}
           <div className="bg-white rounded-2xl shadow-lg p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Send a Message</h2>
+
+            {submitted && (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-800 font-medium">
+                  ✓ Message sent successfully! We'll get back to you soon.
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                   Name
                 </label>
                 <input
                   type="text"
+                  id="name"
+                  name="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="Your name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email
                 </label>
                 <input
                   type="email"
+                  id="email"
+                  name="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="your@email.com"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Message
+                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject
                 </label>
-                <textarea
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                <input
+                  type="text"
+                  id="subject"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleChange}
                   required
-                  rows={5}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  placeholder="How can we help you?"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  placeholder="What's this about?"
                 />
               </div>
 
-              <Button
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                  Message
+                </label>
+                <textarea
+                  id="message"
+                  name="message"
+                  value={formData.message}
+                  onChange={handleChange}
+                  required
+                  rows="4"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition resize-none"
+                  placeholder="Your message..."
+                />
+              </div>
+
+              <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-medium"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
               >
+                <Send className="w-5 h-5" />
                 Send Message
-              </Button>
+              </button>
             </form>
           </div>
         </div>

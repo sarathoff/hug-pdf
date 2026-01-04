@@ -24,6 +24,26 @@ const PricingPage = () => {
       setPlans(response.data.plans);
     } catch (error) {
       console.error('Error fetching pricing:', error);
+      // Fallback plans if API fails
+      setPlans([
+        {
+          id: 'pro',
+          name: 'Pro Hug Plan',
+          price: 19,
+          billing: 'monthly',
+          credits: 100,
+          features: ["Unlimited PDF generations", "Priority AI processing", "Advanced templates", "Remove watermark"]
+        },
+        {
+          id: 'lifetime',
+          name: 'Lifetime Hug',
+          price: 49,
+          billing: 'one-time',
+          credits: 500,
+          popular: true,
+          features: ["Everything in Pro", "Lifetime updates", "Priority support", "Early access"]
+        }
+      ]);
     }
   };
 
@@ -40,9 +60,10 @@ const PricingPage = () => {
         { plan: planId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      // Redirect to Dodo Payments checkout
-      window.location.href = response.data.checkout_url;
+
+      if (response.data.checkout_url) {
+        window.location.href = response.data.checkout_url;
+      }
     } catch (error) {
       console.error('Error creating checkout:', error);
       alert('Error processing payment. Please try again.');
@@ -74,29 +95,29 @@ const PricingPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-16">
-        {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-5xl font-bold mb-6 tracking-tight">
-            Simple, Credit-Based Pricing
+            Simple, Transparent
+            <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Pricing
+            </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            1 credit = 1 PDF. Choose the plan that works for you.
+            Choose the plan that fits your needs. No hidden fees.
           </p>
           <p className="text-lg text-blue-600 font-medium mt-4">
             New users get 3 free credits to try!
           </p>
         </div>
 
-        {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`relative bg-white rounded-2xl shadow-lg p-8 border-2 ${
-                plan.popular
+              className={`relative bg-white rounded-2xl shadow-lg p-8 border-2 ${plan.popular
                   ? 'border-purple-500 shadow-purple-200'
                   : 'border-gray-200'
-              }`}
+                }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
@@ -106,19 +127,15 @@ const PricingPage = () => {
                 </div>
               )}
 
-              {/* Icon */}
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 ${
-                plan.popular
+              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 ${plan.popular
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                   : 'bg-gray-100 text-gray-700'
-              }`}>
+                }`}>
                 {getPlanIcon(plan.id)}
               </div>
 
-              {/* Plan Name */}
               <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-              
-              {/* Price */}
+
               <div className="mb-6">
                 <span className="text-5xl font-bold text-gray-900">${plan.price}</span>
                 {plan.billing === 'monthly' && (
@@ -129,15 +146,6 @@ const PricingPage = () => {
                 )}
               </div>
 
-              {/* Credits */}
-              <div className="bg-blue-50 rounded-xl p-4 mb-6">
-                <p className="text-blue-900 font-semibold text-lg">
-                  {plan.credits} Credits
-                </p>
-                <p className="text-blue-700 text-sm">= {plan.credits} PDFs</p>
-              </div>
-
-              {/* Features */}
               <ul className="space-y-3 mb-8">
                 {plan.features.map((feature, index) => (
                   <li key={index} className="flex items-start gap-3">
@@ -147,21 +155,19 @@ const PricingPage = () => {
                 ))}
               </ul>
 
-              {/* CTA Button */}
               <Button
                 onClick={() => handlePurchase(plan.id)}
                 disabled={loading || (user && user.plan === plan.id)}
-                className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 ${
-                  plan.popular
+                className={`w-full py-4 rounded-xl font-medium flex items-center justify-center gap-2 ${plan.popular
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
                     : 'bg-gray-900 hover:bg-gray-800 text-white'
-                }`}
+                  }`}
               >
                 {user && user.plan === plan.id ? (
                   'Current Plan'
                 ) : (
                   <>
-                    Purchase Now
+                    {loading ? 'Processing...' : 'Purchase Now'}
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}
@@ -170,7 +176,6 @@ const PricingPage = () => {
           ))}
         </div>
 
-        {/* Info Section */}
         <div className="mt-16 text-center space-y-4">
           <p className="text-gray-600 text-lg">
             Have questions? <button onClick={() => navigate('/contact')} className="text-blue-600 hover:text-blue-700 font-medium">Contact us</button>

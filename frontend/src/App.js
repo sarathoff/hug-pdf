@@ -8,8 +8,13 @@ import EditorPage from "./pages/EditorPage";
 import AuthPage from "./pages/AuthPage";
 import PricingPage from "./pages/PricingPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
-import ContactPage from "./pages/ContactPage";
 import AboutPage from "./pages/AboutPage";
+import ContactPage from "./pages/ContactPage";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import SuccessPage from "./pages/SuccessPage";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -30,17 +35,24 @@ function App() {
 
   return (
     <AuthProvider>
-      <div className="App">
+      <div className="App flex flex-col min-h-screen">
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/editor" element={<EditorPage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/payment/success" element={<PaymentSuccessPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/about" element={<AboutPage />} />
-          </Routes>
+          <Header />
+          <main className="flex-grow">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/editor" element={<EditorPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/payment/success" element={<PaymentSuccessPage />} />
+              <Route path="/success" element={<SuccessPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+            </Routes>
+          </main>
+          <Footer />
         </BrowserRouter>
       </div>
     </AuthProvider>

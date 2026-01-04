@@ -14,6 +14,7 @@ cryptography==46.0.3
 cssselect2==0.8.0
 dnspython==2.8.0
 ecdsa==0.19.1
+dodopayments==1.0.1
 email-validator==2.3.0
 fastapi==0.110.1
 flake8==7.3.0
@@ -24,6 +25,7 @@ google-api-python-client==2.187.0
 google-auth==2.45.0
 google-auth-httplib2==0.3.0
 google-generativeai==0.8.6
+google-genai==1.0.0
 googleapis-common-protos==1.72.0
 greenlet==3.3.0
 grpcio==1.76.0
@@ -39,7 +41,6 @@ librt==0.7.4
 markdown-it-py==4.0.0
 mccabe==0.7.0
 mdurl==0.1.2
-motor==3.3.1
 mypy==1.19.1
 mypy_extensions==1.1.0
 numpy==2.4.0
@@ -50,7 +51,7 @@ passlib==1.7.4
 pathspec==0.12.1
 pillow==12.0.0
 platformdirs==4.5.1
-playwright==1.57.0
+xhtml2pdf==0.2.16
 pluggy==1.6.0
 proto-plus==1.27.0
 protobuf==5.29.5
@@ -65,7 +66,6 @@ pyee==13.0.0
 pyflakes==3.4.0
 Pygments==2.19.2
 PyJWT==2.10.1
-pymongo==4.5.0
 pyparsing==3.3.1
 pyphen==0.17.2
 pytest==9.0.2
@@ -97,4 +97,5 @@ uvicorn==0.25.0
 watchfiles==1.1.1
 weasyprint==67.0
 webencodings==0.5.1
+pylatex==1.4.2
 zopfli==0.4.0
