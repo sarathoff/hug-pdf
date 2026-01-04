@@ -14,7 +14,7 @@ cryptography==46.0.3
 cssselect2==0.8.0
 dnspython==2.8.0
 ecdsa==0.19.1
-dodopayments==1.0.1
+dodopayments==1.70.0
 email-validator==2.3.0
 fastapi==0.110.1
 flake8==7.3.0
