@@ -9,9 +9,10 @@ class PaymentService:
     def __init__(self):
         self.dodo_api_key = os.environ.get('DODO_PAYMENTS_API_KEY')
         self.dodo_public_key = os.environ.get('DODO_PAYMENTS_PUBLIC_KEY')
-        self.base_url = 'https://api.dodopayments.com'
         # Test mode - set to 'true' to bypass actual payment processing
         self.test_mode = os.environ.get('PAYMENT_TEST_MODE', 'false').lower() == 'true'
+        # Use correct Dodo Payments API endpoint
+        self.base_url = 'https://test.dodopayments.com' if self.test_mode else 'https://live.dodopayments.com'
         
     async def create_checkout_session(self, user_id: str, plan: str, email: str) -> dict:
         """Create Dodo Payments checkout session"""

@@ -433,7 +433,7 @@ async def payment_success(
             
                 # Get checkout session details from Dodo
                 response = requests.get(
-                    f'https://api.dodopayments.com/checkouts/{session_id}',
+                    f'https://live.dodopayments.com/checkouts/{session_id}',
                     headers=headers,
                     timeout=10
                 )
