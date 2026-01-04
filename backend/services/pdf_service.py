@@ -26,19 +26,17 @@ class PDFService:
             try:
                 # Try to compile with pdflatex
                 # -interaction=nonstopmode: don't stop for errors
-                # --enable-installer: allow MiKTeX to install packages
                 result = subprocess.run(
                     [
                         'pdflatex', 
                         '-interaction=nonstopmode',
-                        '--enable-installer',
                         '-output-directory', str(tmpdir_path), 
                         str(tex_file)
                     ],
                     capture_output=True,
                     text=True,
                     stdin=subprocess.DEVNULL,  # Prevent hanging on input prompts
-                    timeout=120,  # Increased to allow package installation
+                    timeout=120,
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
                 )
                 
@@ -51,7 +49,6 @@ class PDFService:
                         [
                             'pdflatex', 
                             '-interaction=nonstopmode',
-                            '--enable-installer',
                             '-output-directory', str(tmpdir_path), 
                             str(tex_file)
                         ],
