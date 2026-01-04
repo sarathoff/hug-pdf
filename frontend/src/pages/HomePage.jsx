@@ -40,56 +40,64 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Top Navigation */}
-      <div className="absolute top-0 right-0 p-6 flex items-center gap-4">
-        {user ? (
-          <>
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
-              <CreditCard className="w-5 h-5 text-blue-600" />
-              <span className="font-semibold text-gray-900">{user.credits} Credits</span>
-              {user.early_adopter && (
-                <span className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-2 py-1 rounded-full">
-                  Early Adopter
-                </span>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/pricing')}
-              className="flex items-center gap-2"
-            >
-              <CreditCard className="w-4 h-4" />
-              Buy Credits
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={logout}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/pricing')}
-              className="flex items-center gap-2"
-            >
-              Pricing
-            </Button>
-            <Button
-              onClick={() => navigate('/auth')}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-            >
-              <User className="w-4 h-4 mr-2" />
-              Sign In
-            </Button>
-          </>
-        )}
+      <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between">
+        {/* Logo */}
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="HugPDF Logo" className="h-10 w-auto" />
+        </div>
+
+        {/* Right side navigation */}
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
+                <CreditCard className="w-5 h-5 text-blue-600" />
+                <span className="font-semibold text-gray-900">{user.credits} Credits</span>
+                {user.early_adopter && (
+                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-2 py-1 rounded-full">
+                    Early Adopter
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/pricing')}
+                className="flex items-center gap-2"
+              >
+                <CreditCard className="w-4 h-4" />
+                Buy Credits
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/pricing')}
+                className="flex items-center gap-2"
+              >
+                Pricing
+              </Button>
+              <Button
+                onClick={() => navigate('/auth')}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Sign In
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-16">
@@ -165,7 +173,7 @@ const HomePage = () => {
               </button>
             </div>
             <p className="text-sm text-gray-500">
-              © 2024 PDF Generator. All rights reserved.
+              © 2024 HugPDF. Made with ❤️ by Sarath
             </p>
           </div>
         </div>

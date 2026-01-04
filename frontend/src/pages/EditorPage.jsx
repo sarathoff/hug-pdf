@@ -294,7 +294,7 @@ const EditorPage = () => {
             <Home className="w-4 h-4" />
             Home
           </Button>
-          <h1 className="text-xl font-semibold text-gray-800">PDF Editor</h1>
+          <img src="/logo.png" alt="HugPDF Logo" className="h-8 w-auto" />
           {user && (
             <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-lg">
               <CreditCard className="w-4 h-4 text-blue-600" />
