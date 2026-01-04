@@ -24,9 +24,11 @@ const Header = () => {
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
                     <Link to="/" className="flex items-center gap-2 group">
-                        <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg group-hover:shadow-lg transition-shadow">
-                            <FileText className="w-5 h-5 text-white" />
-                        </div>
+                        <img
+                            src="/logo.png"
+                            alt="HugPDF Logo"
+                            className="w-16 h-16 object-contain group-hover:scale-105 transition-transform"
+                        />
                         <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                             HugPDF
                         </span>
