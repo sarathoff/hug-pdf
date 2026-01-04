@@ -1,0 +1,42 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: hugpdf-backend
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: |
+      set -e
+      echo "=== Installing system dependencies ==="
+      apt-get update
+      apt-get install -y texlive-latex-base texlive-fonts-recommended texlive-latex-extra
+      echo "=== Verifying pdflatex installation ==="
+      which pdflatex
+      pdflatex --version
+      echo "=== Installing Python dependencies ==="
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      echo "=== Build complete ==="
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: DODO_PAYMENTS_API_KEY
+        sync: false
+      - key: DODO_PAYMENTS_PUBLIC_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PAYMENT_TEST_MODE
+        value: false
+    healthCheckPath: /api/

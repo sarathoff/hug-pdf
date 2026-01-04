@@ -16,6 +16,9 @@ const PaymentSuccessPage = () => {
   const [credits, setCredits] = React.useState(0);
   const [plan, setPlan] = React.useState('');
 
+  // Prevent duplicate payment processing
+  const processedRef = React.useRef(false);
+
   const handlePaymentSuccess = useCallback(async (planId, userId, sessionId) => {
     try {
       const params = {
@@ -48,11 +51,17 @@ const PaymentSuccessPage = () => {
   }, [refreshUser, token]);
 
   useEffect(() => {
+    // Prevent multiple executions - only process once per page load
+    if (processedRef.current) {
+      return;
+    }
+
     const plan = searchParams.get('plan');
     const userId = searchParams.get('user_id');
     const sessionId = searchParams.get('session_id');
 
     if (plan && userId) {
+      processedRef.current = true;
       handlePaymentSuccess(plan, userId, sessionId);
     }
   }, [searchParams, handlePaymentSuccess]);
