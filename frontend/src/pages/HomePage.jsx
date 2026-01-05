@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Sparkles, FileText, Briefcase, BarChart3, Receipt, CreditCard, User, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import ThinkingLoader from '../components/ThinkingLoader';
 
 const HomePage = () => {
   const [prompt, setPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -19,7 +21,11 @@ const HomePage = () => {
         navigate('/pricing');
         return;
       }
-      navigate('/editor', { state: { initialPrompt: prompt } });
+      setIsGenerating(true);
+      // Small delay to show the thinking loader before navigation
+      setTimeout(() => {
+        navigate('/editor', { state: { initialPrompt: prompt } });
+      }, 500);
     }
   };
 
@@ -39,20 +45,23 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Thinking Loader */}
+      {isGenerating && <ThinkingLoader />}
+
       {/* Top Navigation */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between">
+      <div className="absolute top-0 left-0 right-0 p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="HugPDF Logo" className="h-10 w-auto" />
         </div>
 
         {/* Right side navigation */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
           {user ? (
             <>
-              <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
-                <CreditCard className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-gray-900">{user.credits} Credits</span>
+              <div className="flex items-center gap-2 sm:gap-3 bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-gray-200">
+                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                <span className="font-semibold text-sm sm:text-base text-gray-900">{user.credits} Credits</span>
                 {user.early_adopter && (
                   <span className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-2 py-1 rounded-full">
                     Early Adopter
@@ -100,39 +109,39 @@ const HomePage = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
         {/* Header */}
-        <div className="text-center mb-16 mt-12">
-          <h1 className="text-6xl font-bold mb-6 tracking-tight">
+        <div className="text-center mb-8 sm:mb-16 mt-16 sm:mt-12">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 sm:mb-6 tracking-tight px-4">
             Create Beautiful PDFs
             <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               with AI
             </span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed px-4">
             Just describe what you need. Our AI will generate, format, and deliver
             stunning PDFs in seconds.
           </p>
         </div>
 
         {/* Main Input */}
-        <div className="bg-white rounded-2xl shadow-lg p-3 mb-12 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 flex items-center gap-3 px-4">
-              <Sparkles className="w-5 h-5 text-blue-500 flex-shrink-0" />
+        <div className="bg-white rounded-2xl shadow-lg p-2 sm:p-3 mb-8 sm:mb-12 hover:shadow-xl transition-shadow duration-300">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <div className="flex-1 flex items-center gap-2 sm:gap-3 px-3 sm:px-4">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
               <input
                 type="text"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Describe your PDF... e.g., 'Create a marketing proposal for a tech startup'"
-                className="flex-1 py-4 bg-transparent outline-none text-gray-800 placeholder-gray-400 text-base"
+                placeholder="Describe your PDF... e.g., 'Create a resume'"
+                className="flex-1 py-3 sm:py-4 bg-transparent outline-none text-gray-800 placeholder-gray-400 text-sm sm:text-base"
               />
             </div>
             <Button
               onClick={handleCreatePDF}
               disabled={!prompt.trim()}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-6 rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-4 sm:py-6 rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto tap-target"
             >
               Create PDF
             </Button>
