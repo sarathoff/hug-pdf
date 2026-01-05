@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Send, Download, Loader2, Home, CreditCard, LogOut, Eye, Code } from 'lucide-react';
+import { Send, Download, Loader2, Home, CreditCard, LogOut, Eye, Code, Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ThinkingLoader from '../components/ThinkingLoader';
 import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -24,6 +25,7 @@ const EditorPage = () => {
   const [previewError, setPreviewError] = useState(null);
   const [showSource, setShowSource] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
   const messagesEndRef = useRef(null);
   const iframeRef = useRef(null);
   const previewTimeoutRef = useRef(null);
@@ -282,50 +284,64 @@ const EditorPage = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      {/* Thinking Loader */}
+      {loading && messages.length === 0 && <ThinkingLoader />}
+
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/')}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 text-xs sm:text-sm"
           >
             <Home className="w-4 h-4" />
-            Home
+            <span className="hidden sm:inline">Home</span>
           </Button>
-          <img src="/logo.png" alt="HugPDF Logo" className="h-8 w-auto" />
+          <img src="/logo.png" alt="HugPDF Logo" className="h-6 sm:h-8 w-auto" />
           {user && (
-            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-lg">
-              <CreditCard className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-semibold text-blue-900">{user.credits} Credits</span>
+            <div className="flex items-center gap-1 sm:gap-2 bg-blue-50 px-2 sm:px-3 py-1 rounded-lg">
+              <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+              <span className="text-xs sm:text-sm font-semibold text-blue-900">{user.credits}</span>
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile Preview Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowMobilePreview(!showMobilePreview)}
+            className="md:hidden flex items-center gap-2"
+          >
+            {showMobilePreview ? <X className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {showMobilePreview ? 'Chat' : 'Preview'}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={logout}
-            className="text-gray-600 hover:text-red-600 hover:bg-red-50"
+            className="text-gray-600 hover:text-red-600 hover:bg-red-50 text-xs sm:text-sm"
           >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
+            <LogOut className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Logout</span>
           </Button>
           <Button
             onClick={handleDownloadPDF}
             disabled={!htmlContent || downloadLoading}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center gap-2"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2"
           >
             {downloadLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Generating PDF...
+                <span className="hidden sm:inline">Generating...</span>
               </>
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                Download PDF
+                <span className="hidden sm:inline">Download PDF</span>
+                <span className="sm:hidden">PDF</span>
               </>
             )}
           </Button>
@@ -333,9 +349,10 @@ const EditorPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Chat Panel */}
-        <div className="w-1/2 border-r border-gray-200 flex flex-col bg-white">
+        <div className={`w-full md:w-1/2 border-r border-gray-200 flex flex-col bg-white ${showMobilePreview ? 'hidden md:flex' : 'flex'
+          }`}>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((message, index) => (
@@ -365,20 +382,20 @@ const EditorPage = () => {
           </div>
 
           {/* Input */}
-          <div className="border-t border-gray-200 p-4">
+          <div className="border-t border-gray-200 p-3 sm:p-4">
             <div className="flex items-end gap-2">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask me to modify the PDF..."
-                rows={3}
-                className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={2}
+                className="flex-1 resize-none rounded-xl border border-gray-300 px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={!input.trim() || loading || !sessionId}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white p-3 rounded-xl"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white p-2 sm:p-3 rounded-xl tap-target"
               >
                 <Send className="w-5 h-5" />
               </Button>
@@ -387,7 +404,8 @@ const EditorPage = () => {
         </div>
 
         {/* Preview Panel */}
-        <div className="w-1/2 bg-gray-100 p-6 overflow-hidden">
+        <div className={`w-full md:w-1/2 bg-gray-100 p-3 sm:p-6 overflow-hidden ${showMobilePreview ? 'flex' : 'hidden md:flex'
+          }`}>
           <div className="h-full bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
             {htmlContent ? (
               <>

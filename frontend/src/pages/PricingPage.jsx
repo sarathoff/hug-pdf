@@ -79,44 +79,44 @@ const PricingPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-800">Pricing</h1>
+          <h1 className="text-lg sm:text-xl font-semibold text-gray-800">Pricing</h1>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/')}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 text-xs sm:text-sm"
           >
             <Home className="w-4 h-4" />
-            Home
+            <span className="hidden sm:inline">Home</span>
           </Button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold mb-6 tracking-tight">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
+        <div className="text-center mb-8 sm:mb-16">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 tracking-tight px-4">
             Simple, Transparent
             <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Pricing
             </span>
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto px-4">
             Choose the plan that fits your needs. No hidden fees.
           </p>
-          <p className="text-lg text-blue-600 font-medium mt-4">
+          <p className="text-sm sm:text-base md:text-lg text-blue-600 font-medium mt-3 sm:mt-4 px-4">
             New users get 3 free credits to try!
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`relative bg-white rounded-2xl shadow-lg p-8 border-2 ${plan.popular
-                  ? 'border-purple-500 shadow-purple-200'
-                  : 'border-gray-200'
+              className={`relative bg-white rounded-2xl shadow-lg p-6 sm:p-8 border-2 ${plan.popular
+                ? 'border-purple-500 shadow-purple-200'
+                : 'border-gray-200'
                 }`}
             >
               {plan.popular && (
@@ -127,17 +127,17 @@ const PricingPage = () => {
                 </div>
               )}
 
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 ${plan.popular
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'bg-gray-100 text-gray-700'
+              <div className={`inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-2xl mb-4 sm:mb-6 ${plan.popular
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                : 'bg-gray-100 text-gray-700'
                 }`}>
                 {getPlanIcon(plan.id)}
               </div>
 
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
 
-              <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">${plan.price}</span>
+              <div className="mb-4 sm:mb-6">
+                <span className="text-4xl sm:text-5xl font-bold text-gray-900">${plan.price}</span>
                 {plan.billing === 'monthly' && (
                   <span className="text-gray-600 ml-2">/ month</span>
                 )}
@@ -146,7 +146,7 @@ const PricingPage = () => {
                 )}
               </div>
 
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-2 sm:space-y-3 mb-6 sm:mb-8">
                 {plan.features.map((feature, index) => (
                   <li key={index} className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
@@ -158,9 +158,9 @@ const PricingPage = () => {
               <Button
                 onClick={() => handlePurchase(plan.id)}
                 disabled={loading || (user && user.plan === plan.id)}
-                className={`w-full py-4 rounded-xl font-medium flex items-center justify-center gap-2 ${plan.popular
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
-                    : 'bg-gray-900 hover:bg-gray-800 text-white'
+                className={`w-full py-3 sm:py-4 rounded-xl font-medium flex items-center justify-center gap-2 tap-target ${plan.popular
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                  : 'bg-gray-900 hover:bg-gray-800 text-white'
                   }`}
               >
                 {user && user.plan === plan.id ? (
@@ -176,8 +176,8 @@ const PricingPage = () => {
           ))}
         </div>
 
-        <div className="mt-16 text-center space-y-4">
-          <p className="text-gray-600 text-lg">
+        <div className="mt-12 sm:mt-16 text-center space-y-3 sm:space-y-4 px-4">
+          <p className="text-gray-600 text-base sm:text-lg">
             Have questions? <button onClick={() => navigate('/contact')} className="text-blue-600 hover:text-blue-700 font-medium">Contact us</button>
           </p>
           <p className="text-sm text-gray-500">

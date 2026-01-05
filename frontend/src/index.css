@@ -113,3 +113,28 @@ code {
         border-bottom-color: inherit;
     }
 }
+
+@layer utilities {
+    /* Touch-friendly tap targets (minimum 44x44px for accessibility) */
+    .tap-target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Prevent text overflow on mobile */
+    .text-balance {
+        text-wrap: balance;
+    }
+    
+    /* Safe area padding for notched devices (iPhone X+) */
+    .safe-area-padding {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+    
+    /* Prevent horizontal scroll on mobile */
+    .no-scroll-x {
+        overflow-x: hidden;
+    }
+}
+

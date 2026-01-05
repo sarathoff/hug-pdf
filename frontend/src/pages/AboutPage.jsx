@@ -16,41 +16,41 @@ const AboutPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="HugPDF Logo" className="h-8 w-auto" />
+            <img src="/logo.png" alt="HugPDF Logo" className="h-6 sm:h-8 w-auto" />
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/')}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 text-xs sm:text-sm"
           >
             <Home className="w-4 h-4" />
-            Home
+            <span className="hidden sm:inline">Home</span>
           </Button>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold mb-6">
+        <div className="text-center mb-8 sm:mb-16">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 px-4">
             About
             <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               HugPDF
             </span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
             Transform your ideas into beautiful, professional PDFs with the power of artificial intelligence.
           </p>
         </div>
 
         {/* Creator's Story */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-lg p-8 text-white mb-12">
-          <h2 className="text-2xl font-bold mb-4">My Story</h2>
-          <div className="text-blue-50 leading-relaxed space-y-4">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-lg p-6 sm:p-8 text-white mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">My Story</h2>
+          <div className="text-blue-50 leading-relaxed space-y-3 sm:space-y-4 text-sm sm:text-base">
             <p>
               Hi, I'm <span className="font-semibold text-white">Sarath</span>, an ECE engineering student and the creator of HugPDF.
             </p>
@@ -80,13 +80,13 @@ const AboutPage = () => {
           </div>
 
           {/* Contact Links */}
-          <div className="mt-6 pt-6 border-t border-blue-400 flex flex-wrap gap-4">
+          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-blue-400 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
             <a
               href="mailto:sarathramesh.mailbox@gmail.com"
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base"
             >
-              <Mail className="w-4 h-4" />
-              <span>sarathramesh.mailbox@gmail.com</span>
+              <Mail className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">sarathramesh.mailbox@gmail.com</span>
             </a>
             <a
               href="https://github.com/sarathoff"
@@ -101,7 +101,7 @@ const AboutPage = () => {
         </div>
 
         {/* Mission Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-12">
+        <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-8 sm:mb-12">
           <div className="flex items-center gap-3 mb-4">
             <Sparkles className="w-6 h-6 text-blue-600" />
             <h2 className="text-2xl font-bold text-gray-900">Why HugPDF?</h2>
@@ -117,8 +117,8 @@ const AboutPage = () => {
         </div>
 
         {/* Technology Stack */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Built With Modern Technology</h2>
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center px-4">Built With Modern Technology</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {technologies.map((tech) => {
               const Icon = tech.icon;
@@ -143,7 +143,7 @@ const AboutPage = () => {
         </div>
 
         {/* Features */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-12">
+        <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-8 sm:mb-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Key Features</h2>
           <ul className="space-y-4">
             <li className="flex items-start gap-3">
@@ -178,7 +178,7 @@ const AboutPage = () => {
         </div>
 
         {/* Feedback Section */}
-        <div className="bg-blue-50 rounded-2xl p-8 mb-12 border border-blue-200">
+        <div className="bg-blue-50 rounded-2xl p-6 sm:p-8 mb-8 sm:mb-12 border border-blue-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Support & Suggestions</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             Have ideas to improve HugPDF? Found a bug? Want to suggest a feature? I'd love to hear from you!
@@ -195,10 +195,10 @@ const AboutPage = () => {
         </div>
 
         {/* CTA */}
-        <div className="text-center">
+        <div className="text-center px-4">
           <Link
             to="/"
-            className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+            className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300 tap-target"
           >
             Try HugPDF Now
           </Link>

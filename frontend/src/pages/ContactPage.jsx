@@ -31,28 +31,28 @@ const ContactPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="HugPDF Logo" className="h-8 w-auto" />
-            <h1 className="text-xl font-semibold text-gray-800">Contact Us</h1>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <img src="/logo.png" alt="HugPDF Logo" className="h-6 sm:h-8 w-auto" />
+            <h1 className="text-base sm:text-lg md:text-xl font-semibold text-gray-800">Contact Us</h1>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/')}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 text-xs sm:text-sm"
           >
             <Home className="w-4 h-4" />
-            Home
+            <span className="hidden sm:inline">Home</span>
           </Button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-12">
           {/* Contact Info */}
-          <div className="bg-white rounded-2xl shadow-lg p-8">
+          <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h2>
 
             <div className="space-y-4">
@@ -98,7 +98,7 @@ const ContactPage = () => {
           </div>
 
           {/* Contact Form */}
-          <div className="bg-white rounded-2xl shadow-lg p-8">
+          <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Send a Message</h2>
 
             {submitted && (
@@ -176,7 +176,7 @@ const ContactPage = () => {
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 tap-target"
               >
                 <Send className="w-5 h-5" />
                 Send Message
