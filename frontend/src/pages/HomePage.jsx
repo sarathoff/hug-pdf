@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Sparkles, FileText, Briefcase, BarChart3, Receipt, CreditCard, User, LogOut } from 'lucide-react';
+import { Card, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import ThinkingLoader from '../components/ThinkingLoader';
 
 const HomePage = () => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const handleCreatePDF = () => {
     if (prompt.trim()) {
@@ -22,10 +23,8 @@ const HomePage = () => {
         return;
       }
       setIsGenerating(true);
-      // Small delay to show the thinking loader before navigation
-      setTimeout(() => {
-        navigate('/editor', { state: { initialPrompt: prompt } });
-      }, 500);
+      // Navigate immediately without splash screen
+      navigate('/editor', { state: { initialPrompt: prompt } });
     }
   };
 
@@ -37,154 +36,82 @@ const HomePage = () => {
   };
 
   const examplePrompts = [
-    { icon: FileText, text: 'Create a professional resume' },
-    { icon: Briefcase, text: 'Write a business proposal' },
-    { icon: BarChart3, text: 'Design a project report' },
-    { icon: Receipt, text: 'Make an invoice template' }
+    { icon: FileText, text: 'Create a professional resume for a software engineer' },
+    { icon: Briefcase, text: 'Write a business proposal for a new marketing campaign' },
+    { icon: BarChart3, text: 'Design a project report with executive summary' },
+    { icon: Receipt, text: 'Make an invoice template with logo placeholder' }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Thinking Loader */}
-      {isGenerating && <ThinkingLoader />}
-
-      {/* Top Navigation */}
-      <div className="absolute top-0 left-0 right-0 p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Logo */}
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="HugPDF Logo" className="h-10 w-auto" />
-        </div>
-
-        {/* Right side navigation */}
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
-          {user ? (
-            <>
-              <div className="flex items-center gap-2 sm:gap-3 bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-gray-200">
-                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                <span className="font-semibold text-sm sm:text-base text-gray-900">{user.credits} Credits</span>
-                {user.early_adopter && (
-                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-2 py-1 rounded-full">
-                    Early Adopter
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/pricing')}
-                className="flex items-center gap-2"
-              >
-                <CreditCard className="w-4 h-4" />
-                Buy Credits
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="flex items-center gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/pricing')}
-                className="flex items-center gap-2"
-              >
-                Pricing
-              </Button>
-              <Button
-                onClick={() => navigate('/auth')}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-              >
-                <User className="w-4 h-4 mr-2" />
-                Sign In
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
+    <div className="relative z-10 w-full">
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
         {/* Header */}
-        <div className="text-center mb-8 sm:mb-16 mt-16 sm:mt-12">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 sm:mb-6 tracking-tight px-4">
+        <div className="text-center mb-12 sm:mb-16 space-y-6">
+          <Badge variant="secondary" className="mb-4 px-4 py-1.5 text-sm bg-blue-50 text-blue-700 border-blue-100 rounded-full cursor-default hover:bg-blue-50">
+            <Sparkles className="w-3.5 h-3.5 mr-2 fill-blue-700" />
+            AI-Powered PDF Generation
+          </Badge>
+
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900">
             Create Beautiful PDFs
-            <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              with AI
+            <span className="block mt-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent pb-4">
+              in Seconds with AI
             </span>
           </h1>
+
           <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed px-4">
-            Just describe what you need. Our AI will generate, format, and deliver
-            stunning PDFs in seconds.
+            Just describe what you need. Our advanced AI will generate, format, and deliver
+            stunning professional PDFs tailored to your needs.
           </p>
         </div>
 
         {/* Main Input */}
-        <div className="bg-white rounded-2xl shadow-lg p-2 sm:p-3 mb-8 sm:mb-12 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-            <div className="flex-1 flex items-center gap-2 sm:gap-3 px-3 sm:px-4">
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
-              <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Describe your PDF... e.g., 'Create a resume'"
-                className="flex-1 py-3 sm:py-4 bg-transparent outline-none text-gray-800 placeholder-gray-400 text-sm sm:text-base"
-              />
+        <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl mb-12 overflow-hidden ring-1 ring-gray-200/50 max-w-2xl mx-auto">
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex flex-col sm:flex-row items-stretch gap-2 transition-all">
+              <div className="flex-1 flex items-center gap-3 px-4 py-3 sm:py-2 bg-white sm:bg-transparent rounded-lg border sm:border-0 border-gray-100">
+                <Sparkles className="w-5 h-5 text-blue-500 animate-pulse flex-shrink-0" />
+                <input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Describe your PDF..."
+                  className="flex-1 bg-transparent parse-none outline-none text-gray-900 placeholder-gray-400 text-base sm:text-lg w-full min-w-0"
+                />
+              </div>
+              <Button
+                onClick={handleCreatePDF}
+                disabled={!prompt.trim() || isGenerating}
+                size="lg"
+                className="h-12 sm:h-14 px-8 text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg rounded-xl transition-all duration-300 transform hover:scale-[1.02] w-full sm:w-auto mt-2 sm:mt-0"
+              >
+                Generate
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
             </div>
-            <Button
-              onClick={handleCreatePDF}
-              disabled={!prompt.trim()}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-4 sm:py-6 rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto tap-target"
-            >
-              Create PDF
-            </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Example Prompts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto px-2">
           {examplePrompts.map((example, index) => {
             const Icon = example.icon;
             return (
               <button
                 key={index}
                 onClick={() => setPrompt(example.text)}
-                className="flex items-center gap-3 px-6 py-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-300 text-left group"
+                className="group flex items-center gap-4 p-4 bg-white/50 hover:bg-white border border-gray-100 hover:border-blue-100 rounded-2xl transition-all duration-300 hover:shadow-lg text-left"
               >
-                <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors duration-300">
-                  <Icon className="w-5 h-5 text-blue-600" />
+                <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors flex-shrink-0">
+                  <Icon className="w-5 h-5 text-gray-500 group-hover:text-blue-600" />
                 </div>
-                <span className="text-gray-700 font-medium">{example.text}</span>
+                <span className="text-sm sm:text-base text-gray-600 group-hover:text-gray-900 font-medium transition-colors">
+                  {example.text}
+                </span>
               </button>
             );
           })}
-        </div>
-
-        {/* Footer */}
-        <div className="mt-20 pt-12 border-t border-gray-200">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-6">
-              <button onClick={() => navigate('/about')} className="text-gray-600 hover:text-gray-900 font-medium">
-                About
-              </button>
-              <button onClick={() => navigate('/pricing')} className="text-gray-600 hover:text-gray-900 font-medium">
-                Pricing
-              </button>
-              <button onClick={() => navigate('/contact')} className="text-gray-600 hover:text-gray-900 font-medium">
-                Contact
-              </button>
-            </div>
-            <p className="text-sm text-gray-500">
-              © 2024 HugPDF. Made with ❤️ by Sarath
-            </p>
-          </div>
         </div>
       </div>
     </div>

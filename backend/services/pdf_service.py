@@ -19,6 +19,7 @@ class PDFService:
             tmpdir_path = Path(tmpdir)
             tex_file = tmpdir_path / "document.tex"
             pdf_file = tmpdir_path / "document.pdf"
+            log_file = tmpdir_path / "document.log"
             
             # Write LaTeX content to file
             tex_file.write_text(latex_content, encoding='utf-8')
@@ -71,12 +72,14 @@ class PDFService:
                     logger.error(f"LaTeX content (first 500 chars): {latex_content[:500]}")
                     
                     # Check if .log file exists for more details
-                    log_file = tmpdir_path / "document.log"
+                    error_details = "LaTeX compilation failed."
                     if log_file.exists():
                         log_content = log_file.read_text(encoding='utf-8', errors='ignore')
+                        log_tail = log_content[-1000:]
                         logger.error(f"LaTeX log file (last 2000 chars): {log_content[-2000:]}")
+                        error_details += f"\nLog tail:\n{log_tail}"
                     
-                    raise Exception(f"LaTeX compilation failed. Check the LaTeX syntax and ensure all required packages are installed.")
+                    raise Exception(error_details)
                     
             except FileNotFoundError:
                 logger.error("pdflatex not found. Please install a TeX distribution (MiKTeX or TeX Live)")

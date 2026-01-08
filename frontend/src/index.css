@@ -45,6 +45,7 @@ code {
         --chart-5: 27 87% 67%;
         --radius: 0.5rem;
     }
+
     .dark {
         --background: 0 0% 3.9%;
         --foreground: 0 0% 98%;
@@ -77,6 +78,7 @@ code {
     * {
         @apply border-border;
     }
+
     body {
         @apply bg-background text-foreground;
     }
@@ -87,7 +89,7 @@ code {
         display: contents !important;
     }
 
-    [data-debug-wrapper="true"] > * {
+    [data-debug-wrapper="true"]>* {
         margin-left: inherit;
         margin-right: inherit;
         margin-top: inherit;
@@ -115,26 +117,66 @@ code {
 }
 
 @layer utilities {
+
     /* Touch-friendly tap targets (minimum 44x44px for accessibility) */
     .tap-target {
         min-height: 44px;
         min-width: 44px;
     }
-    
+
     /* Prevent text overflow on mobile */
     .text-balance {
         text-wrap: balance;
     }
-    
+
     /* Safe area padding for notched devices (iPhone X+) */
     .safe-area-padding {
         padding-left: max(1rem, env(safe-area-inset-left));
         padding-right: max(1rem, env(safe-area-inset-right));
     }
-    
+
     /* Prevent horizontal scroll on mobile */
     .no-scroll-x {
         overflow-x: hidden;
     }
 }
 
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+
+    /* Ensure touch targets are at least 44x44px */
+    .tap-target {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Improve mobile spacing */
+    body {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Better mobile typography */
+    input,
+    textarea,
+    button {
+        font-size: 16px !important;
+        /* Prevents zoom on iOS */
+    }
+
+    /* PDF viewer mobile optimization */
+    iframe {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent horizontal scroll */
+    .overflow-x-hidden {
+        overflow-x: hidden;
+    }
+}
+
+/* Smooth transitions */
+* {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}

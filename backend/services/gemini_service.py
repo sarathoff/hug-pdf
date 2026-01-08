@@ -24,8 +24,14 @@ IMPORTANT REQUIREMENTS:
 3. Include necessary packages (geometry, fontenc, inputenc, etc.)
 4. Use professional formatting with proper sections and structure
 5. Set appropriate margins and page layout
-6. Use clean, readable typography
-7. Structure content logically
+6. Structure content logically
+
+CRITICAL FONT & PACKAGE INSTRUCTIONS (TO PREVENT ERRORS):
+1. USE ONLY STANDARD FONTS: Use \\usepackage{{lmodern}} or \\usepackage{{mathptmx}}. 
+2. DO NOT use 'beramono', 'fvm', 'libertine', 'newtxmath', or 'pxfonts'. These cause compilation errors on many systems.
+3. DO NOT use 'amssymb' if you are using a font package that already defines math symbols (like mathptmx).
+4. If in doubt, stick to default Computer Modern or Latin Modern (lmodern).
+5. Ensure all environments (begin/end) are properly closed.
 
 User request: {prompt}
 
@@ -81,6 +87,11 @@ IMPORTANT:
 2. Keep the same overall structure but apply the requested changes
 3. Ensure all changes are properly integrated
 4. Keep it professional and well-formatted
+
+CRITICAL FONT & PACKAGE INSTRUCTIONS:
+1. If the user asks to fix fonts/errors: REMOVE 'beramono', 'libertine', 'newtxmath'. REPLACE with \\usepackage{{lmodern}}.
+2. Ensure no conflicting packages (e.g. amssymb vs newtxmath).
+3. Stick to standard, safe LaTeX packages.
 
 Generate ONLY the complete modified LaTeX code, nothing else. No explanations, no markdown code blocks, just the raw LaTeX.
 """

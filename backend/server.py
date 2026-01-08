@@ -289,74 +289,7 @@ async def download_pdf(
         logging.error(f"Error in download_pdf: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Authentication Routes (Migrated to Supabase)
-@api_router.post("/auth/register", response_model=UserResponse)
-async def register(user_data: UserCreate):
-    """Register new user with 3 free PDFs"""
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Database not initialized")
-        
-    try:
-        # Check if user exists
-        response = supabase.table("users").select("*").eq('email', user_data.email).execute()
-        if response.data:
-            raise HTTPException(status_code=400, detail="Email already registered")
-        
-        # Create new user with 3 free PDFs
-        user = User(
-            email=user_data.email,
-            password_hash=auth_service.hash_password(user_data.password),
-            credits=3,  # 3 free PDF downloads
-            plan="free"
-        )
-        
-        # Supabase insert
-        supabase.table("users").insert(user.model_dump(mode='json')).execute()
-        
-        return UserResponse(
-            user_id=user.user_id,
-            email=user.email,
-            credits=user.credits,
-            plan=user.plan,
-            early_adopter=user.early_adopter
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logging.error(f"Error in register: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@api_router.post("/auth/login")
-async def login(credentials: UserLogin):
-    """Login and get JWT token"""
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Database not initialized")
-        
-    try:
-        response = supabase.table("users").select("*").eq('email', credentials.email).execute()
-        user = response.data[0] if response.data else None
-        
-        if not user or not auth_service.verify_password(credentials.password, user['password_hash']):
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-        
-        token = auth_service.create_token(user['user_id'], user['email'])
-        
-        return {
-            'token': token,
-            'user': UserResponse(
-                user_id=user['user_id'],
-                email=user['email'],
-                credits=user['credits'],
-                plan=user['plan'],
-                early_adopter=user.get('early_adopter', False)
-            )
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logging.error(f"Error in login: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
+# Authentication Routes (Using Supabase Auth)
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
     """Get current user info"""

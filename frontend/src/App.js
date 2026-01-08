@@ -13,8 +13,7 @@ import ContactPage from "./pages/ContactPage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SuccessPage from "./pages/SuccessPage";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
+import Layout from "./components/Layout";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -35,24 +34,23 @@ function App() {
 
   return (
     <AuthProvider>
-      <div className="App flex flex-col min-h-screen">
+      <div className="App">
         <BrowserRouter>
-          <Header />
-          <main className="flex-grow">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/editor" element={<EditorPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/payment/success" element={<PaymentSuccessPage />} />
-              <Route path="/success" element={<SuccessPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-            </Routes>
-          </main>
-          <Footer />
+          <Routes>
+            {/* Pages with Standard Layout (Header + Footer) */}
+            <Route path="/" element={<Layout><HomePage /></Layout>} />
+            <Route path="/pricing" element={<Layout><PricingPage /></Layout>} />
+            <Route path="/about" element={<Layout><AboutPage /></Layout>} />
+            <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
+            <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
+            <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
+            <Route path="/payment/success" element={<Layout><PaymentSuccessPage /></Layout>} />
+            <Route path="/success" element={<Layout><SuccessPage /></Layout>} />
+
+            {/* Pages with Custom/Standalone Layout */}
+            <Route path="/editor" element={<EditorPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+          </Routes>
         </BrowserRouter>
       </div>
     </AuthProvider>
