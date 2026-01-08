@@ -50,9 +50,16 @@ try:
     if not supabase_url or not supabase_key:
         raise ValueError("Supabase keys missing")
     supabase: Client = create_client(supabase_url, supabase_key)
+    
+    # Initialize Admin Client (Service Role) for bypassing RLS
+    # Try to get explicit service role key, otherwise fallback to SUPABASE_KEY (hoping it IS the service role)
+    service_role_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", supabase_key)
+    supabase_admin: Client = create_client(supabase_url, service_role_key)
+    
 except Exception as e:
     logging.warning(f"Failed to initialize Supabase Client: {e}")
     supabase = None
+    supabase_admin = None
 
 # Initialize services
 gemini_service = GeminiService()
@@ -83,7 +90,27 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
     response = supabase.table("users").select("*").eq("user_id", payload['user_id']).execute()
     
     if not response.data:
-        logging.warning(f"DEBUG: Authenticated user {payload['user_id']} not found in 'users' table.")
+        logging.warning(f"DEBUG: Authenticated user {payload['user_id']} not found in 'users' table. Auto-creating...")
+        # Auto-create user if missing (Self-healing)
+        try:
+            if not supabase_admin:
+                logging.error("Supabase Admin client not initialized, cannot auto-create user")
+                return None
+                
+            new_user = {
+                "user_id": payload['user_id'],
+                "email": payload.get('email'),
+                "credits": 3,
+                "plan": "free"
+            }
+            # Use supabase_admin to bypass RLS
+            res = supabase_admin.table("users").insert(new_user).execute()
+            if res.data:
+                logging.info(f"Auto-created user {payload['user_id']}")
+                return res.data[0]
+        except Exception as e:
+            logging.error(f"Failed to auto-create user: {e}")
+            return None
         return None
         
     return response.data[0]
@@ -435,7 +462,7 @@ async def payment_success(
         
         new_credits = resp.data[0]['credits'] + credits_to_add
         
-        supabase.table("users").update({
+        supabase_admin.table("users").update({
             'plan': plan,
             'credits': new_credits,
             'updated_at': datetime.now(timezone.utc).isoformat()
