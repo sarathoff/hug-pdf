@@ -77,10 +77,10 @@ const ThinkingLoader = ({ message = "Generating your PDF..." }) => {
                             >
                                 <div
                                     className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${isActive
-                                            ? 'bg-blue-600 text-white'
-                                            : isCompleted
-                                                ? 'bg-green-500 text-white'
-                                                : 'bg-gray-200 text-gray-400'
+                                        ? 'bg-blue-600 text-white'
+                                        : isCompleted
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-gray-200 text-gray-400'
                                         }`}
                                 >
                                     {isCompleted ? (

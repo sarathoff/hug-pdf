@@ -75,17 +75,12 @@ agenthub/agents/youtube/db
 
 # Build caches
 .cache/
+*.pdf
 
 # Mobile development
 android-sdk/ -e 
 # Environment files
+.env
+.env.local
+.env.*
 *.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*

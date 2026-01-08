@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Check, Crown, Zap, ArrowRight, Home } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Separator } from '../components/ui/separator';
+import { Check, Crown, Zap, ArrowRight, Shield, Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -24,7 +27,7 @@ const PricingPage = () => {
       setPlans(response.data.plans);
     } catch (error) {
       console.error('Error fetching pricing:', error);
-      // Fallback plans if API fails
+      // Fallback plans
       setPlans([
         {
           id: 'pro',
@@ -32,7 +35,7 @@ const PricingPage = () => {
           price: 19,
           billing: 'monthly',
           credits: 100,
-          features: ["Unlimited PDF generations", "Priority AI processing", "Advanced templates", "Remove watermark"]
+          features: ["Unlimited PDF generations", "Priority AI processing", "Advanced templates", "Remove watermark", "Commercial license"]
         },
         {
           id: 'lifetime',
@@ -41,7 +44,7 @@ const PricingPage = () => {
           billing: 'one-time',
           credits: 500,
           popular: true,
-          features: ["Everything in Pro", "Lifetime updates", "Priority support", "Early access"]
+          features: ["Everything in Pro", "Lifetime updates", "Priority support", "Early access to new features", "No recurring fees"]
         }
       ]);
     }
@@ -72,117 +75,109 @@ const PricingPage = () => {
     }
   };
 
-  const getPlanIcon = (planId) => {
-    return planId === 'lifetime' ? <Crown className="w-8 h-8" /> : <Zap className="w-8 h-8" />;
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-lg sm:text-xl font-semibold text-gray-800">Pricing</h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-xs sm:text-sm"
-          >
-            <Home className="w-4 h-4" />
-            <span className="hidden sm:inline">Home</span>
-          </Button>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
-        <div className="text-center mb-8 sm:mb-16">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 tracking-tight px-4">
+    <div className="relative w-full h-full">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <div className="text-center mb-16 space-y-4">
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
             Simple, Transparent
-            <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 ml-2">
               Pricing
             </span>
           </h2>
-          <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto px-4">
-            Choose the plan that fits your needs. No hidden fees.
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Choose the perfect plan for your needs. Always know what you'll pay.
           </p>
-          <p className="text-sm sm:text-base md:text-lg text-blue-600 font-medium mt-3 sm:mt-4 px-4">
-            New users get 3 free credits to try!
-          </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-100 cursor-default">
+            <Zap className="w-4 h-4" />
+            New users get 3 free credits to start!
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {plans.map((plan) => (
-            <div
+            <Card
               key={plan.id}
-              className={`relative bg-white rounded-2xl shadow-lg p-6 sm:p-8 border-2 ${plan.popular
-                ? 'border-purple-500 shadow-purple-200'
-                : 'border-gray-200'
+              className={`relative border-2 transition-all duration-300 hover:shadow-xl ${plan.popular
+                  ? 'border-purple-500 shadow-purple-100 scale-105 z-10'
+                  : 'border-gray-100 hover:border-gray-200'
                 }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-1 rounded-full text-sm font-medium">
+                  <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-4 py-1 text-sm shadow-lg border-0">
                     Most Popular
-                  </span>
+                  </Badge>
                 </div>
               )}
 
-              <div className={`inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-2xl mb-4 sm:mb-6 ${plan.popular
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                : 'bg-gray-100 text-gray-700'
-                }`}>
-                {getPlanIcon(plan.id)}
-              </div>
+              <CardHeader>
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`p-3 rounded-2xl ${plan.popular ? 'bg-purple-50 text-purple-600' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                    {plan.id === 'lifetime' ? <Crown className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
+                  </div>
+                  <Badge variant="outline" className="uppercase text-xs tracking-wider">
+                    {plan.billing === 'one-time' ? 'One-time payment' : 'Monthly billing'}
+                  </Badge>
+                </div>
+                <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                <CardDescription>Perfect for {plan.id === 'lifetime' ? 'power users' : 'professionals'}</CardDescription>
+              </CardHeader>
 
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+              <CardContent className="space-y-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-5xl font-bold text-gray-900">${plan.price}</span>
+                  <span className="text-gray-500 font-medium">/{plan.billing === 'one-time' ? 'life' : 'mo'}</span>
+                </div>
 
-              <div className="mb-4 sm:mb-6">
-                <span className="text-4xl sm:text-5xl font-bold text-gray-900">${plan.price}</span>
-                {plan.billing === 'monthly' && (
-                  <span className="text-gray-600 ml-2">/ month</span>
-                )}
-                {plan.billing === 'one-time' && (
-                  <span className="text-gray-600 ml-2">one-time</span>
-                )}
-              </div>
+                <Separator />
 
-              <ul className="space-y-2 sm:space-y-3 mb-6 sm:mb-8">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{feature}</span>
-                  </li>
-                ))}
-              </ul>
+                <ul className="space-y-3">
+                  {plan.features.map((feature, index) => (
+                    <li key={index} className="flex items-start gap-3 text-sm text-gray-600">
+                      <div className="mt-0.5 rounded-full bg-green-100 p-0.5">
+                        <Check className="w-3.5 h-3.5 text-green-600" />
+                      </div>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
 
-              <Button
-                onClick={() => handlePurchase(plan.id)}
-                disabled={loading || (user && user.plan === plan.id)}
-                className={`w-full py-3 sm:py-4 rounded-xl font-medium flex items-center justify-center gap-2 tap-target ${plan.popular
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
-                  : 'bg-gray-900 hover:bg-gray-800 text-white'
-                  }`}
-              >
-                {user && user.plan === plan.id ? (
-                  'Current Plan'
-                ) : (
-                  <>
-                    {loading ? 'Processing...' : 'Purchase Now'}
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </Button>
-            </div>
+              <CardFooter>
+                <Button
+                  onClick={() => handlePurchase(plan.id)}
+                  disabled={loading || (user && user.plan === plan.id)}
+                  className={`w-full h-12 text-base font-medium shadow-lg transition-all ${plan.popular
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                      : 'bg-gray-900 hover:bg-gray-800 text-white'
+                    }`}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (user && user.plan === plan.id) ? (
+                    'Current Plan'
+                  ) : (
+                    <>
+                      Get Started
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
           ))}
         </div>
 
-        <div className="mt-12 sm:mt-16 text-center space-y-3 sm:space-y-4 px-4">
-          <p className="text-gray-600 text-base sm:text-lg">
-            Have questions? <button onClick={() => navigate('/contact')} className="text-blue-600 hover:text-blue-700 font-medium">Contact us</button>
-          </p>
-          <p className="text-sm text-gray-500">
-            Secure payments powered by Dodo Payments
-          </p>
+        <div className="mt-16 text-center">
+          <div className="inline-flex items-center gap-2 text-gray-500 bg-gray-50 px-4 py-2 rounded-full text-sm">
+            <Shield className="w-4 h-4" />
+            <span>Secure payments powered by Dodo Payments</span>
+          </div>
         </div>
       </div>
     </div>
