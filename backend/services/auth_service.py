@@ -15,6 +15,11 @@ class AuthService:
             # Supabase tokens are signed with the JWT_SECRET from your Supabase project
             # For production, you should fetch the public key from Supabase
             supabase_jwt_secret = os.environ.get('SUPABASE_JWT_SECRET', JWT_SECRET)
+            print(f"DEBUG: Verifying token with secret ending in ...{supabase_jwt_secret[-6:] if supabase_jwt_secret else 'NONE'}")
+            
+            # Decode without verification first to get the header
+            unverified_header = jwt.get_unverified_header(token)
+            print(f"DEBUG: Token Header: {unverified_header}")
             
             # Decode without verification first to get the header
             unverified = jwt.decode(token, options={"verify_signature": False})
@@ -39,12 +44,52 @@ class AuthService:
                 'email': email,
                 'exp': payload.get('exp')
             }
-        except jwt.ExpiredSignatureError:
-            return None
-        except jwt.InvalidTokenError:
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
+            # If standard HS256 failed, check if we should try JWKS (for ES256/RS256)
+            try:
+                unverified_header = jwt.get_unverified_header(token)
+                alg = unverified_header.get('alg')
+                
+                if alg in ['RS256', 'ES256']:
+                    print(f"DEBUG: Token uses {alg}, attempting JWKS verification...")
+                    supabase_url = os.environ.get("SUPABASE_URL")
+                    if not supabase_url:
+                        print("DEBUG: SUPABASE_URL missing, cannot fetch JWKS")
+                        return None
+                        
+                    jwks_url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
+                    jwks_client = jwt.PyJWKClient(jwks_url)
+                    signing_key = jwks_client.get_signing_key_from_jwt(token)
+                    
+                    payload = jwt.decode(
+                        token,
+                        signing_key.key,
+                        algorithms=[alg],
+                        options={"verify_aud": False}
+                    )
+                    
+                    # Extract user_id
+                    user_id = payload.get('sub')
+                    email = payload.get('email')
+                    
+                    if not user_id:
+                        return None
+                        
+                    return {
+                        'user_id': user_id,
+                        'email': email,
+                        'exp': payload.get('exp')
+                    }
+            except Exception as jwks_error:
+                print(f"DEBUG: JWKS verification failed: {jwks_error}")
+            
+            # Original error reporting if JWKS didn't succeed
+            print(f"DEBUG: Token verification failed: {e}")
             return None
         except Exception as e:
-            print(f"Token verification error: {e}")
+            print(f"DEBUG: Token verification error: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     @staticmethod

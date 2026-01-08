@@ -519,8 +519,14 @@ async def create_checkout_session(request: CheckoutRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
-origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+origins_str = os.environ.get('CORS_ORIGINS', '*')
+if origins_str == '*':
+    origins = ["*"]
+else:
+    origins = [o.strip() for o in origins_str.split(',') if o.strip()]
+
 logging.info(f"Active CORS Origins: {origins}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
