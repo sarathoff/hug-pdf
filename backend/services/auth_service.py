@@ -33,10 +33,13 @@ class AuthService:
             )
             
             # Extract user_id from Supabase token structure
+            logging.info(f"DEBUG: Token verified successfully. Payload: {payload}")
+            
             user_id = payload.get('sub')  # Supabase uses 'sub' for user ID
             email = payload.get('email')
             
             if not user_id:
+                logging.error("DEBUG: Token valid but 'sub' (user_id) is MISSING in payload")
                 return None
                 
             return {

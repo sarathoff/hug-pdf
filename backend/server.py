@@ -82,9 +82,13 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
     token = authorization.replace('Bearer ', '')
     payload = auth_service.verify_token(token)
     if not payload:
+        logging.warning("DEBUG: verify_token returned None")
         return None
+        
+    logging.info(f"DEBUG: Token verified. Payload: {payload}")
     
     if not supabase:
+        logging.error("DEBUG: Supabase client is None")
         return None
         
     response = supabase.table("users").select("*").eq("user_id", payload['user_id']).execute()
