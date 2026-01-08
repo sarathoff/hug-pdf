@@ -2,29 +2,13 @@ services:
   # Backend Web Service
   - type: web
     name: hugpdf-backend
-    runtime: python
+    runtime: docker
     region: oregon
     plan: free
     branch: main
     rootDir: backend
-    buildCommand: |
-      set -e
-      echo "=== Installing system dependencies ==="
-      apt-get update
-      apt-get install -y texlive-latex-base texlive-fonts-recommended texlive-latex-extra texlive-fonts-extra
-      apt-get clean
-      rm -rf /var/lib/apt/lists/*
-      echo "=== Verifying pdflatex installation ==="
-      which pdflatex
-      pdflatex --version
-      echo "=== Installing Python dependencies ==="
-      pip install --upgrade pip
-      pip install -r requirements.txt
-      echo "=== Build complete ==="
-    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: GEMINI_API_KEY
         sync: false
       - key: SUPABASE_URL
