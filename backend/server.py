@@ -81,7 +81,12 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
         return None
         
     response = supabase.table("users").select("*").eq("user_id", payload['user_id']).execute()
-    return response.data[0] if response.data else None
+    
+    if not response.data:
+        logging.warning(f"DEBUG: Authenticated user {payload['user_id']} not found in 'users' table.")
+        return None
+        
+    return response.data[0]
 
 # Define Request/Response Models
 class GenerateInitialRequest(BaseModel):
