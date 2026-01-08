@@ -1,8 +1,12 @@
+import logging
 import jwt
 from datetime import datetime, timedelta
 import os
 from typing import Optional
 import requests
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 JWT_ALGORITHM = 'HS256'
