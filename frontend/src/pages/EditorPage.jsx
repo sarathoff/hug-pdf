@@ -148,8 +148,9 @@ const EditorPage = () => {
     }, [location.state, handleInitialGeneration]);
 
     // Generate Preview
-    const generatePreview = useCallback(async (content) => {
-        if (!content) {
+    const generatePreview = useCallback(async (html, latex) => {
+        const contentForPreview = latex || html;
+        if (!contentForPreview) {
             setPdfPreviewUrl(null);
             setPreviewLoading(false);
             return;
@@ -164,9 +165,13 @@ const EditorPage = () => {
 
         previewTimeoutRef.current = setTimeout(async () => {
             try {
+                // Optimization: Use LaTeX if available, otherwise fall back to HTML
                 const response = await axios.post(
                     `${API}/preview-pdf`,
-                    { latex_content: content, html_content: content },
+                    {
+                        latex_content: latex || undefined,
+                        html_content: html
+                    },
                     { responseType: 'blob' }
                 );
 
@@ -187,10 +192,11 @@ const EditorPage = () => {
     }, []);
 
     useEffect(() => {
-        if (htmlContent) {
-            generatePreview(htmlContent);
+        // Trigger preview generation when either HTML or LaTeX content changes
+        if (htmlContent || latexContent) {
+            generatePreview(htmlContent, latexContent);
         }
-    }, [htmlContent, generatePreview]);
+    }, [htmlContent, latexContent, generatePreview]);
 
     // Cleanup
     useEffect(() => {
@@ -291,7 +297,7 @@ const EditorPage = () => {
             </div>
 
             {/* Sidebar / Chat Panel */}
-            <div className={`w-full md:w-1/3 lg:w-[400px] flex flex-col border-r bg-gray-50/50 backdrop-blur-sm 
+            <div className={`w-full md:w-1/3 lg:w-[400px] flex flex-col border-r bg-gray-50/50 backdrop-blur-sm
                 ${activeTab === 'chat' ? 'flex h-full' : 'hidden md:flex'}`}>
 
                 {/* Desktop Header */}
@@ -365,7 +371,7 @@ const EditorPage = () => {
             </div>
 
             {/* Preview Panel */}
-            <div className={`flex-1 flex flex-col bg-gray-100 ${isFullscreen ? 'fixed inset-0 z-50' : 'relative h-full'} 
+            <div className={`flex-1 flex flex-col bg-gray-100 ${isFullscreen ? 'fixed inset-0 z-50' : 'relative h-full'}
                 ${(activeTab === 'preview' || activeTab === 'code') ? 'flex' : 'hidden md:flex'}`}>
 
                 {/* Toolbar */}
