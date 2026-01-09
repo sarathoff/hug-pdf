@@ -1,0 +1,150 @@
+yarn run v1.22.22
+$ craco start
+(node:1956) [DEP_WEBPACK_DEV_SERVER_ON_AFTER_SETUP_MIDDLEWARE] DeprecationWarning: 'onAfterSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:1956) [DEP_WEBPACK_DEV_SERVER_ON_BEFORE_SETUP_MIDDLEWARE] DeprecationWarning: 'onBeforeSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+Starting the development server...
+
+Compiled successfully!
+
+You can now view frontend in the browser.
+
+  Local:            http://localhost:3000
+  On Your Network:  http://192.168.0.2:3000
+
+Note that the development build is not optimized.
+To create a production build, use yarn build.
+
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/set-cookie-parser/lib/set-cookie.js'
+ERROR in ./node_modules/set-cookie-parser/lib/set-cookie.js
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/set-cookie-parser/lib/set-cookie.js'
+
+webpack compiled with 1 error
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/set-cookie-parser/lib/set-cookie.js'
+ERROR in ./node_modules/set-cookie-parser/lib/set-cookie.js
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/set-cookie-parser/lib/set-cookie.js'
+
+webpack compiled with 1 error
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+ERROR in ./node_modules/react-router-dom/dist/index.mjs
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+
+webpack compiled with 1 error
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+ERROR in ./node_modules/react-router-dom/dist/index.mjs
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+
+webpack compiled with 1 error
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+ERROR in ./node_modules/react-router-dom/dist/index.mjs
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+
+webpack compiled with 1 error
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+ERROR in ./node_modules/react-router-dom/dist/index.mjs
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+
+webpack compiled with 1 error
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+ERROR in ./node_modules/react-router-dom/dist/index.mjs
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+
+webpack compiled with 1 error
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+ERROR in ./node_modules/react-router-dom/dist/index.mjs
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+
+webpack compiled with 1 error
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+ERROR in ./node_modules/react-router-dom/dist/index.mjs
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+
+webpack compiled with 1 error
+Compiling...
+Failed to compile.
+
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+ERROR in ./node_modules/react-router-dom/dist/index.mjs
+Module build failed (from ./node_modules/source-map-loader/dist/cjs.js):
+Error: ENOENT: no such file or directory, open '/app/frontend/node_modules/react-router-dom/dist/index.mjs'
+
+webpack compiled with 1 error
