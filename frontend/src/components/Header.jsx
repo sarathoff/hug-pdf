@@ -87,7 +87,7 @@ const Header = () => {
                                 </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-gray-100 hover:ring-blue-100 p-0">
+                                        <Button variant="ghost" aria-label="User menu" className="relative h-10 w-10 rounded-full ring-2 ring-gray-100 hover:ring-blue-100 p-0">
                                             <Avatar className="h-9 w-9">
                                                 <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt={user.email} />
                                                 <AvatarFallback>
@@ -144,6 +144,7 @@ const Header = () => {
                         <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                             className="text-gray-600"
                         >

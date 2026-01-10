@@ -267,7 +267,7 @@ const EditorPage = () => {
         <div className="h-dvh flex flex-col md:flex-row bg-background overflow-hidden relative">
             {/* Mobile Header */}
             <div className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-white z-20 shadow-sm flex-shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2" aria-label="Go back">
                     <ChevronLeft className="h-5 w-5 mr-1" />
                 </Button>
 
@@ -296,7 +296,7 @@ const EditorPage = () => {
 
                 {/* Desktop Header */}
                 <div className="hidden md:flex p-4 border-b bg-white items-center justify-between shadow-sm z-10 flex-shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8">
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8" aria-label="Go back">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <span className="font-semibold text-sm">Editor</span>
@@ -352,14 +352,24 @@ const EditorPage = () => {
                             }}
                             className="min-h-[50px] max-h-[120px] bg-transparent border-0 focus-visible:ring-0 resize-none p-2 text-sm leading-normal w-full"
                         />
-                        <Button
-                            size="icon"
-                            className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                            onClick={handleSendMessage}
-                            disabled={!input.trim() || loading || !sessionId}
-                        >
-                            <Send className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="icon"
+                                        aria-label="Send message"
+                                        className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                        onClick={handleSendMessage}
+                                        disabled={!input.trim() || loading || !sessionId}
+                                    >
+                                        <Send className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Send message</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
             </div>
