@@ -123,8 +123,8 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
             error_str = str(e)
             if '23505' in error_str or 'duplicate key' in error_str.lower():
                 logging.info(f"User {payload['user_id']} already exists (race condition), fetching existing record...")
-                # Retry the SELECT to get the existing user
-                retry_response = supabase.table("users").select("*").eq("user_id", payload['user_id']).execute()
+                # Retry the SELECT to get the existing user (use admin client to bypass RLS)
+                retry_response = supabase_admin.table("users").select("*").eq("user_id", payload['user_id']).execute()
                 if retry_response.data:
                     return retry_response.data[0]
             
