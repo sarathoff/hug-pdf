@@ -52,9 +52,15 @@ try:
     supabase: Client = create_client(supabase_url, supabase_key)
     
     # Initialize Admin Client (Service Role) for bypassing RLS
-    # Try to get explicit service role key, otherwise fallback to SUPABASE_KEY (hoping it IS the service role)
-    service_role_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", supabase_key)
-    supabase_admin: Client = create_client(supabase_url, service_role_key)
+    service_role_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    
+    if service_role_key:
+        supabase_admin: Client = create_client(supabase_url, service_role_key)
+        logging.info("Supabase Admin client initialized with SERVICE_ROLE_KEY")
+    else:
+        logging.warning("SUPABASE_SERVICE_ROLE_KEY not found! Falling back to SUPABASE_KEY. RLS bypass will NOT work.")
+        # Fallback (will likely fail for admin tasks)
+        supabase_admin: Client = create_client(supabase_url, supabase_key)
     
 except Exception as e:
     logging.warning(f"Failed to initialize Supabase Client: {e}")
