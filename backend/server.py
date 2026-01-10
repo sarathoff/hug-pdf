@@ -441,7 +441,7 @@ async def payment_success(
         if session_id:
             try:
                 # Check if we've already processed this session
-                existing = supabase.table("payment_sessions").select("*").eq("session_id", session_id).execute()
+                existing = supabase_admin.table("payment_sessions").select("*").eq("session_id", session_id).execute()
                 if existing.data:
                     logger.warning(f"Payment session {session_id} already processed, skipping credit addition")
                     return {
@@ -475,7 +475,7 @@ async def payment_success(
         # Record this payment session to prevent duplicates (optional)
         if session_id:
             try:
-                supabase.table("payment_sessions").insert({
+                supabase_admin.table("payment_sessions").insert({
                     'session_id': session_id,
                     'user_id': user_id,
                     'plan': plan,
