@@ -119,6 +119,15 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
                 logging.info(f"Auto-created user {payload['user_id']}")
                 return res.data[0]
         except Exception as e:
+            # Check if it's a duplicate key error (user was created by another request)
+            error_str = str(e)
+            if '23505' in error_str or 'duplicate key' in error_str.lower():
+                logging.info(f"User {payload['user_id']} already exists (race condition), fetching existing record...")
+                # Retry the SELECT to get the existing user
+                retry_response = supabase.table("users").select("*").eq("user_id", payload['user_id']).execute()
+                if retry_response.data:
+                    return retry_response.data[0]
+            
             logging.error(f"Failed to auto-create user: {e}")
             return None
         return None
