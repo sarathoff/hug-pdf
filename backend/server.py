@@ -1,5 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Header, Depends
-from fastapi.responses import Response
+from fastapi import FastAPI, APIRouter, HTTPException, Header, Depends, UploadFile, File
+from fastapi.responses import Response, FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
@@ -25,6 +25,7 @@ from services.gemini_service import GeminiService
 from services.pdf_service import PDFService
 from services.auth_service import AuthService
 from services.payment_service import PaymentService
+from services.pexels_service import PexelsService
 from models.session import Session, Message
 from models.user import User, UserCreate, UserLogin, UserResponse
 from dodopayments import DodoPayments
@@ -72,6 +73,7 @@ gemini_service = GeminiService()
 pdf_service = PDFService()
 auth_service = AuthService()
 payment_service = PaymentService()
+pexels_service = PexelsService()
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -533,6 +535,82 @@ async def get_pricing():
             }
         ]
     }
+
+@api_router.get("/images/search")
+async def search_images(query: str, per_page: int = 15, page: int = 1):
+    """Search for images on Pexels"""
+    try:
+        if not query:
+            raise HTTPException(status_code=400, detail="Query parameter is required")
+        
+        result = pexels_service.search_images(query, per_page, page)
+        
+        if result is None:
+            raise HTTPException(status_code=503, detail="Image search service unavailable")
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error searching images: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/images/curated")
+async def get_curated_images(per_page: int = 15, page: int = 1):
+    """Get curated images from Pexels"""
+    try:
+        result = pexels_service.get_curated_images(per_page, page)
+        
+        if result is None:
+            raise HTTPException(status_code=503, detail="Image service unavailable")
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error getting curated images: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Upload image and return temporary URL for use in PDFs"""
+    try:
+        # Create temp_uploads directory if it doesn't exist
+        temp_dir = ROOT_DIR / "temp_uploads"
+        temp_dir.mkdir(exist_ok=True)
+        
+        # Generate unique filename
+        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        unique_name = f"{uuid.uuid4()}.{file_ext}"
+        filepath = temp_dir / unique_name
+        
+        # Save file
+        content = await file.read()
+        with open(filepath, 'wb') as f:
+            f.write(content)
+        
+        # Get backend URL from environment or construct it
+        backend_url = os.environ.get('BACKEND_URL', 'http://localhost:8000')
+        url = f"{backend_url}/api/temp-images/{unique_name}"
+        
+        logger.info(f"Uploaded image {file.filename} as {unique_name}")
+        return {"url": url, "filename": file.filename}
+        
+    except Exception as e:
+        logger.error(f"Error uploading image: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/temp-images/{filename}")
+async def serve_temp_image(filename: str):
+    """Serve temporarily uploaded images"""
+    filepath = ROOT_DIR / "temp_uploads" / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    return FileResponse(filepath)
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
