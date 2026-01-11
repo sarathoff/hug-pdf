@@ -267,7 +267,7 @@ const EditorPage = () => {
         <div className="h-dvh flex flex-col md:flex-row bg-background overflow-hidden relative">
             {/* Mobile Header */}
             <div className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-white z-20 shadow-sm flex-shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2" aria-label="Back to Home">
                     <ChevronLeft className="h-5 w-5 mr-1" />
                 </Button>
 
@@ -291,12 +291,12 @@ const EditorPage = () => {
             </div>
 
             {/* Sidebar / Chat Panel */}
-            <div className={`w-full md:w-1/3 lg:w-[400px] flex flex-col border-r bg-gray-50/50 backdrop-blur-sm 
+            <div className={`w-full md:w-1/3 lg:w-[400px] flex flex-col border-r bg-gray-50/50 backdrop-blur-sm
                 ${activeTab === 'chat' ? 'flex h-full' : 'hidden md:flex'}`}>
 
                 {/* Desktop Header */}
                 <div className="hidden md:flex p-4 border-b bg-white items-center justify-between shadow-sm z-10 flex-shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8">
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8" aria-label="Back to Home">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <span className="font-semibold text-sm">Editor</span>
@@ -352,20 +352,30 @@ const EditorPage = () => {
                             }}
                             className="min-h-[50px] max-h-[120px] bg-transparent border-0 focus-visible:ring-0 resize-none p-2 text-sm leading-normal w-full"
                         />
-                        <Button
-                            size="icon"
-                            className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                            onClick={handleSendMessage}
-                            disabled={!input.trim() || loading || !sessionId}
-                        >
-                            <Send className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="icon"
+                                        className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                        onClick={handleSendMessage}
+                                        disabled={!input.trim() || loading || !sessionId}
+                                        aria-label="Send message"
+                                    >
+                                        <Send className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Send message</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
             </div>
 
             {/* Preview Panel */}
-            <div className={`flex-1 flex flex-col bg-gray-100 ${isFullscreen ? 'fixed inset-0 z-50' : 'relative h-full'} 
+            <div className={`flex-1 flex flex-col bg-gray-100 ${isFullscreen ? 'fixed inset-0 z-50' : 'relative h-full'}
                 ${(activeTab === 'preview' || activeTab === 'code') ? 'flex' : 'hidden md:flex'}`}>
 
                 {/* Toolbar */}
@@ -461,9 +471,10 @@ const EditorPage = () => {
                                     />
                                 </div>
                             ) : (
-                                <div className="flex flex-col items-center justify-center p-8 text-gray-400 mt-20">
-                                    <Eye className="w-12 h-12 mb-4 opacity-20" />
-                                    <p className="text-sm">Preview will appear here</p>
+                                <div className="flex flex-col items-center justify-center p-8 text-gray-400 mt-20 text-center">
+                                    <Eye className="w-12 h-12 mb-4 opacity-20" aria-hidden="true" />
+                                    <p className="text-sm font-medium">Preview will appear here</p>
+                                    <p className="text-xs mt-2 opacity-75">Start chatting to generate your PDF</p>
                                 </div>
                             )}
                         </div>
