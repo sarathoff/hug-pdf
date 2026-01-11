@@ -108,6 +108,51 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, [syncUserToBackend]);
 
+  // Automatic token refresh
+  useEffect(() => {
+    if (!session) return;
+
+    const setupTokenRefresh = () => {
+      const expiresAt = session.expires_at; // Unix timestamp in seconds
+      if (!expiresAt) return;
+
+      const now = Math.floor(Date.now() / 1000); // Current time in seconds
+      const expiresIn = expiresAt - now; // Time until expiration in seconds
+
+      // Refresh 5 minutes (300 seconds) before expiration
+      const refreshIn = Math.max(0, (expiresIn - 300) * 1000); // Convert to milliseconds
+
+      console.log(`Token expires in ${expiresIn} seconds. Refreshing in ${refreshIn / 1000} seconds.`);
+
+      const timeoutId = setTimeout(async () => {
+        console.log('Refreshing token...');
+        try {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) {
+            console.error('Token refresh failed:', error);
+            // If refresh fails, log the user out
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+          } else {
+            console.log('Token refreshed successfully');
+            setSession(data.session);
+          }
+        } catch (err) {
+          console.error('Token refresh error:', err);
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+        }
+      }, refreshIn);
+
+      return () => clearTimeout(timeoutId);
+    };
+
+    const cleanup = setupTokenRefresh();
+    return cleanup;
+  }, [session]);
+
   const register = async (email, password) => {
     const { data, error } = await supabase.auth.signUp({
       email,

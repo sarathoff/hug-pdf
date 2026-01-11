@@ -33,6 +33,25 @@ CRITICAL FONT & PACKAGE INSTRUCTIONS (TO PREVENT ERRORS):
 4. If in doubt, stick to default Computer Modern or Latin Modern (lmodern).
 5. Ensure all environments (begin/end) are properly closed.
 
+SPACING & LAYOUT QUALITY INSTRUCTIONS (CRITICAL TO PREVENT OVERLAPPING):
+1. ALWAYS use proper spacing between sections: \\vspace{{0.5em}} or \\medskip
+2. For resumes/CVs: Use \\section*{{}} for main sections with \\vspace{{-0.5em}} after if needed
+3. Avoid tight spacing - ensure adequate whitespace between elements
+4. Use \\par or blank lines between paragraphs
+5. For lists: Use proper itemize/enumerate environments with appropriate spacing
+6. For headers with dates: Use \\hfill or tabular to prevent overlap
+7. Set reasonable margins: \\usepackage[margin=0.75in]{{geometry}}
+8. Use \\setlength{{\\parskip}}{{0.5em}} for paragraph spacing
+9. Avoid negative vspace unless absolutely necessary
+10. Test layout: ensure no text overlaps by using proper LaTeX structures
+
+IMAGE HANDLING INSTRUCTIONS:
+1. ALWAYS include \\usepackage{{graphicx}} in the preamble if images are mentioned
+2. When user provides an image URL (in brackets like [URL: ...]), use \\includegraphics{{URL}}
+3. Use appropriate width: \\includegraphics[width=0.5\\textwidth]{{URL}}
+4. Center images: \\begin{{center}} ... \\end{{center}}
+5. Add captions if appropriate: \\begin{{figure}}[h] \\centering \\includegraphics... \\caption{{...}} \\end{{figure}}
+
 User request: {prompt}
 
 Generate ONLY the complete LaTeX code, nothing else. No explanations, no markdown code blocks, just the raw LaTeX.
@@ -92,6 +111,20 @@ CRITICAL FONT & PACKAGE INSTRUCTIONS:
 1. If the user asks to fix fonts/errors: REMOVE 'beramono', 'libertine', 'newtxmath'. REPLACE with \\usepackage{{lmodern}}.
 2. Ensure no conflicting packages (e.g. amssymb vs newtxmath).
 3. Stick to standard, safe LaTeX packages.
+
+SPACING & LAYOUT QUALITY INSTRUCTIONS (PREVENT OVERLAPPING):
+1. Maintain proper spacing between sections: \\vspace{{0.5em}} or \\medskip
+2. Ensure adequate whitespace between elements
+3. Use \\hfill or tabular for headers with dates to prevent overlap
+4. Avoid negative vspace unless necessary
+5. Keep reasonable margins and paragraph spacing
+
+IMAGE HANDLING INSTRUCTIONS:
+1. If adding images, ALWAYS include \\usepackage{{graphicx}} in the preamble
+2. When user provides an image URL (in brackets like [URL: ...]), use \\includegraphics{{URL}}
+3. Use appropriate width: \\includegraphics[width=0.5\\textwidth]{{URL}}
+4. Center images: \\begin{{center}} ... \\end{{center}}
+5. Add captions if appropriate: \\begin{{figure}}[h] \\centering \\includegraphics... \\caption{{...}} \\end{{figure}}
 
 Generate ONLY the complete modified LaTeX code, nothing else. No explanations, no markdown code blocks, just the raw LaTeX.
 """

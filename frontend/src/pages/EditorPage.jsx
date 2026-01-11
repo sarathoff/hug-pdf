@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import ChatLoadingStages from '../components/ChatLoadingStages';
+import ImagePicker from '../components/ImagePicker';
 import { Sparkles } from 'lucide-react';
 
 // Shadcn UI Components
@@ -31,7 +32,8 @@ import {
     Maximize2,
     Minimize2,
     ChevronLeft,
-    RefreshCw
+    RefreshCw,
+    Image as ImageIcon
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -56,6 +58,7 @@ const EditorPage = () => {
     const [downloadLoading, setDownloadLoading] = useState(false);
     const [pdfZoom, setPdfZoom] = useState(100);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [showImagePicker, setShowImagePicker] = useState(false);
 
     // Refs for preventing double-firing
     const initialized = useRef(false);
@@ -71,6 +74,21 @@ const EditorPage = () => {
     useEffect(() => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
+
+    // Auto-refresh credits every 30 seconds to keep UI in sync
+    useEffect(() => {
+        if (!refreshUser) return;
+
+        // Refresh immediately on mount
+        refreshUser().catch(err => console.error('Failed to refresh credits:', err));
+
+        // Set up interval for periodic refresh
+        const interval = setInterval(() => {
+            refreshUser().catch(err => console.error('Failed to refresh credits:', err));
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [refreshUser]);
 
     // Initial Generation
     const handleInitialGeneration = useCallback(async (prompt) => {
@@ -239,14 +257,24 @@ const EditorPage = () => {
     };
 
     const handleDownloadPDF = async () => {
-        if (!latexContent && !htmlContent) return;
+        if (!latexContent && !htmlContent) {
+            alert('Please generate a document first before downloading.');
+            return;
+        }
         setDownloadLoading(true);
         try {
+            // Prepare headers with authentication token
+            const headers = {};
+            if (token) {
+                headers.Authorization = `Bearer ${token}`;
+            }
+
             const response = await axios.post(
                 `${API}/download-pdf`,
                 { latex_content: latexContent, html_content: htmlContent, filename: 'document.pdf' },
-                { responseType: 'blob', headers: token ? { Authorization: `Bearer ${token}` } : {} }
+                { responseType: 'blob', headers }
             );
+
             const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             const link = document.createElement('a');
             link.href = url;
@@ -255,12 +283,61 @@ const EditorPage = () => {
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
+
+            // Clear loading state immediately after download
+            setDownloadLoading(false);
+
+            // Refresh user credits in background (don't block UI)
+            if (refreshUser) {
+                refreshUser().catch(err => {
+                    console.error('Failed to refresh user credits:', err);
+                });
+            }
         } catch (error) {
             console.error('Download error:', error);
-            alert('Error downloading PDF.');
-        } finally {
+
+            // Handle insufficient credits error
+            if (error.response?.status === 402) {
+                // Refresh user credits to show updated count
+                if (refreshUser) {
+                    await refreshUser().catch(err => console.error('Failed to refresh:', err));
+                }
+
+                // Show error and redirect to pricing
+                alert('⚠️ No credits remaining!\n\nYou need credits to download PDFs. Redirecting to pricing page...');
+
+                // Immediate redirect
+                navigate('/pricing');
+            } else {
+                // Other errors
+                alert('Error downloading PDF. Please try again.');
+            }
+
+            // Ensure loading state is cleared on error
             setDownloadLoading(false);
         }
+    };
+
+    const handleImageSelect = async (imageData) => {
+        // Create a clean, professional message
+        let displayMessage;
+
+        if (imageData.photographer === 'User Upload') {
+            displayMessage = `Add image: ${imageData.alt}`;
+        } else {
+            displayMessage = `Add image by ${imageData.photographer}: "${imageData.alt}"`;
+        }
+
+        // Include URL as metadata for Gemini (in square brackets so it's less prominent)
+        const imagePrompt = `${displayMessage}\n[URL: ${imageData.url}]`;
+
+        setInput(imagePrompt);
+        setShowImagePicker(false);
+
+        // Automatically send the message
+        setTimeout(() => {
+            handleSendMessage();
+        }, 100);
     };
 
     return (
@@ -339,6 +416,18 @@ const EditorPage = () => {
 
                 {/* Chat Input Area */}
                 <div className="p-3 md:p-4 bg-white border-t flex-shrink-0 sticky bottom-0 z-10 safe-area-bottom shadow-lg md:shadow-none">
+                    {/* Image Picker Button */}
+                    <div className="flex justify-end mb-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowImagePicker(true)}
+                            className="text-xs"
+                        >
+                            <ImageIcon className="h-3 w-3 mr-1" />
+                            Insert Image
+                        </Button>
+                    </div>
                     <div className="relative flex items-end gap-2 bg-gray-50 rounded-xl p-2 border border-gray-200 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
                         <Textarea
                             placeholder="Describe changes..."
@@ -470,6 +559,13 @@ const EditorPage = () => {
                     )}
                 </div>
             </div>
+
+            {/* Image Picker Modal */}
+            <ImagePicker
+                isOpen={showImagePicker}
+                onClose={() => setShowImagePicker(false)}
+                onSelectImage={handleImageSelect}
+            />
         </div>
     );
 };
