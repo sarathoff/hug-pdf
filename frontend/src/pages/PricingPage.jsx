@@ -31,20 +31,12 @@ const PricingPage = () => {
       setPlans([
         {
           id: 'pro',
-          name: 'Pro Hug Plan',
-          price: 19,
+          name: 'Pro Plan',
+          price: 5,
           billing: 'monthly',
-          credits: 100,
-          features: ["Unlimited PDF generations", "Priority AI processing", "Advanced templates", "Remove watermark", "Commercial license"]
-        },
-        {
-          id: 'lifetime',
-          name: 'Lifetime Hug',
-          price: 49,
-          billing: 'one-time',
-          credits: 500,
+          credits: 50,
           popular: true,
-          features: ["Everything in Pro", "Lifetime updates", "Priority support", "Early access to new features", "No recurring fees"]
+          features: ["50 PDF downloads/month", "AI-powered generation", "Research papers & resumes", "E-book creation tools", "Priority support", "Commercial license"]
         }
       ]);
     }
@@ -86,7 +78,7 @@ const PricingPage = () => {
             </span>
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Choose the perfect plan for your needs. Always know what you'll pay.
+            Perfect for research paper writers, resume creators, and digital marketers creating professional e-books.
           </p>
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-100 cursor-default">
             <Zap className="w-4 h-4" />
@@ -94,13 +86,13 @@ const PricingPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 gap-8 max-w-2xl mx-auto">
           {plans.map((plan) => (
             <Card
               key={plan.id}
               className={`relative border-2 transition-all duration-300 hover:shadow-xl ${plan.popular
-                  ? 'border-purple-500 shadow-purple-100 scale-105 z-10'
-                  : 'border-gray-100 hover:border-gray-200'
+                ? 'border-purple-500 shadow-purple-100 scale-105 z-10'
+                : 'border-gray-100 hover:border-gray-200'
                 }`}
             >
               {plan.popular && (
@@ -113,22 +105,21 @@ const PricingPage = () => {
 
               <CardHeader>
                 <div className="flex justify-between items-start mb-4">
-                  <div className={`p-3 rounded-2xl ${plan.popular ? 'bg-purple-50 text-purple-600' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                    {plan.id === 'lifetime' ? <Crown className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
+                  <div className="p-3 rounded-2xl bg-purple-50 text-purple-600">
+                    <Zap className="w-6 h-6" />
                   </div>
                   <Badge variant="outline" className="uppercase text-xs tracking-wider">
-                    {plan.billing === 'one-time' ? 'One-time payment' : 'Monthly billing'}
+                    Monthly billing
                   </Badge>
                 </div>
                 <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
-                <CardDescription>Perfect for {plan.id === 'lifetime' ? 'power users' : 'professionals'}</CardDescription>
+                <CardDescription>Perfect for researchers, creators, and marketers</CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-6">
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-bold text-gray-900">${plan.price}</span>
-                  <span className="text-gray-500 font-medium">/{plan.billing === 'one-time' ? 'life' : 'mo'}</span>
+                  <span className="text-gray-500 font-medium">/mo</span>
                 </div>
 
                 <Separator />
@@ -150,8 +141,8 @@ const PricingPage = () => {
                   onClick={() => handlePurchase(plan.id)}
                   disabled={loading || (user && user.plan === plan.id)}
                   className={`w-full h-12 text-base font-medium shadow-lg transition-all ${plan.popular
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
-                      : 'bg-gray-900 hover:bg-gray-800 text-white'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                    : 'bg-gray-900 hover:bg-gray-800 text-white'
                     }`}
                 >
                   {loading ? (

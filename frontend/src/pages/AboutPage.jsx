@@ -52,10 +52,10 @@ const AboutPage = () => {
             of LaTeX with the simplicity of AI?" That's when I built HugPDF in just 3 days with the help of AI.
           </p>
           <p>
-            As a student, I always preferred free apps. But after building this AI-powered software for everyone, I now
+            As a student, I always preferred free apps. But after building this AI-powered software, I now
             understand why AI-based apps need to be paid. The API costs add up quickly! I've tried my best to keep it
             affordable by offering 3 free PDF downloads. Once I can better manage the AI request costs, I'll definitely
-            increase the free tier to help more students like me.
+            increase the free tier to help more users create professional documents.
           </p>
           <p className="font-semibold text-white pt-2">
             I hope HugPDF helps you create beautiful documents as easily as it helps me! 🚀
@@ -157,7 +157,7 @@ const AboutPage = () => {
         <div className="flex items-center justify-center gap-2 text-gray-500 mb-4">
           <span>Made with</span>
           <Heart className="w-5 h-5 text-red-500 fill-current animate-pulse" />
-          <span>for students and professionals</span>
+          <span>for researchers, creators, and marketers</span>
         </div>
         <Button
           onClick={() => navigate('/')}

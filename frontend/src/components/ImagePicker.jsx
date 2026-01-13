@@ -5,9 +5,12 @@ import { Button } from './ui/button';
 import { Search, Loader2, Image as ImageIcon } from 'lucide-react';
 import axios from 'axios';
 
+import { useAuth } from '../context/AuthContext';
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 const ImagePicker = ({ isOpen, onClose, onSelectImage }) => {
+    const { token } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [images, setImages] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -20,7 +23,7 @@ const ImagePicker = ({ isOpen, onClose, onSelectImage }) => {
         if (isOpen && images.length === 0) {
             loadCuratedImages();
         }
-    }, [isOpen]);
+    }, [isOpen, images.length]);
 
     const loadCuratedImages = async () => {
         setLoading(true);
@@ -87,14 +90,18 @@ const ImagePicker = ({ isOpen, onClose, onSelectImage }) => {
             const formData = new FormData();
             formData.append('file', file);
 
+            // Prepare headers
+            const headers = {
+                'Content-Type': 'multipart/form-data'
+            };
+            if (token) {
+                headers.Authorization = `Bearer ${token}`;
+            }
+
             const response = await axios.post(
                 `${BACKEND_URL}/api/upload-image`,
                 formData,
-                {
-                    headers: {
-                        'Content-Type': 'multipart/form-data'
-                    }
-                }
+                { headers }
             );
 
             // Use the uploaded image
