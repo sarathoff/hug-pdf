@@ -22,38 +22,22 @@ class PaymentService:
             plans = {
                 'pro': {
                     'product_id': 'pdt_0NVXNwzXNZlKGSa8V1z9D',  # Test mode product ID
-                    'price': 900,
+                    'price': 500,  # $5.00 in cents
                     'credits': 50,  # 50 PDF downloads per month
-                    'name': 'Pro Monthly (Test)',
+                    'name': 'Pro Plan (Test)',
                     'description': '50 PDF downloads every month',
                     'billing': 'monthly'
-                },
-                'lifetime': {
-                    'product_id': 'pdt_0NVXNmRNvYVkVgb29CVfi',  # Test mode product ID
-                    'price': 3900,
-                    'credits': 2000,  # 2000 PDF downloads total
-                    'name': 'Lifetime Access (Test)',
-                    'description': '2000 PDF downloads + Lifetime access',
-                    'billing': 'one-time'
                 }
             }
         else:
             plans = {
                 'pro': {
-                    'product_id': 'pdt_0NVGHVzjPDjC2IDdjCGG7',  # Live mode product ID
-                    'price': 900,  # $9.00 in cents
+                    'product_id': 'pdt_0NWBVEhqraATfO68LybuM',  # Live mode product ID
+                    'price': 500,  # $5.00 in cents
                     'credits': 50,  # 50 PDF downloads per month
-                    'name': 'Pro Monthly',
+                    'name': 'Pro Plan',
                     'description': '50 PDF downloads every month',
                     'billing': 'monthly'
-                },
-                'lifetime': {
-                    'product_id': 'pdt_0NVGHqByNTPrBoKH1pmDK',  # Live mode product ID
-                    'price': 3900,  # $39.00 in cents
-                    'credits': 2000,  # 2000 PDF downloads total
-                    'name': 'Lifetime Access',
-                    'description': '2000 PDF downloads + Lifetime access',
-                    'billing': 'one-time'
                 }
             }
         

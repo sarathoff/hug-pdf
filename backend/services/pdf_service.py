@@ -91,11 +91,17 @@ class PDFService:
                 logger.info(f"Replaced URL {url} with local path {latex_path}")
         return modified_latex
     
+    
     @staticmethod
-    async def generate_pdf(latex_content: str) -> bytes:
-        """Convert LaTeX to PDF using pdflatex"""
+    async def generate_pdf(latex_content: str, preview_mode: bool = False) -> bytes:
+        """Convert LaTeX to PDF using pdflatex
         
-        logger.info("Attempting PDF generation from LaTeX")
+        Args:
+            latex_content: LaTeX source code
+            preview_mode: If True, skip second compilation pass for faster previews
+        """
+        
+        logger.info(f"Attempting PDF generation from LaTeX (preview_mode={preview_mode})")
         
         # Create a temporary directory for LaTeX compilation
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -142,9 +148,13 @@ class PDFService:
                 
                 logger.info(f"First pdflatex run completed with return code: {result.returncode}")
                 
-                # Run twice to resolve references (only if first run succeeded)
-                if pdf_file.exists():
-                    logger.info("Running pdflatex second time to resolve references")
+                # Run twice to resolve references (skip for preview mode for speed)
+                # Run twice to resolve references (skip for preview mode unless TOC is present)
+                # Table of Contents requires a second pass to generate the .toc file and include it
+                needs_second_pass = not preview_mode or '\\tableofcontents' in latex_content
+                
+                if pdf_file.exists() and needs_second_pass:
+                    logger.info("Running pdflatex second time to resolve references/TOC")
                     subprocess.run(
                         [
                             'pdflatex', 
@@ -158,6 +168,9 @@ class PDFService:
                         timeout=120,
                         creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
                     )
+                elif preview_mode:
+                    logger.info("Skipping second pdflatex run (preview mode, no TOC found)")
+                
                 
                 if pdf_file.exists():
                     pdf_bytes = pdf_file.read_bytes()

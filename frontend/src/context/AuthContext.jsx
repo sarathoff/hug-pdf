@@ -73,7 +73,15 @@ export const AuthProvider = ({ children }) => {
       return existingUser;
     } catch (error) {
       console.error('Error syncing user to backend:', error);
-      return null;
+      // Fallback: If backend sync fails (e.g. network), return basic user info from session
+      // This prevents "auto-logout" when DB is unreachable but session is valid
+      return {
+        user_id: supabaseUser.id,
+        email: supabaseUser.email,
+        credits: 0, // Assume 0 until sync works, better than logout
+        plan: 'free',
+        error: true
+      };
     }
   }, []);
 
@@ -107,6 +115,32 @@ export const AuthProvider = ({ children }) => {
 
     return () => subscription.unsubscribe();
   }, [syncUserToBackend]);
+
+  // Real-time subscription for user data (updates credits instantly)
+  useEffect(() => {
+    if (!user?.user_id) return;
+
+    const channel = supabase
+      .channel('public:users')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `user_id=eq.${user.user_id}`,
+        },
+        (payload) => {
+          console.log('Realtime user update:', payload);
+          setUser((prev) => ({ ...prev, ...payload.new }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.user_id]);
 
   // Automatic token refresh
   useEffect(() => {
@@ -199,11 +233,21 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const refreshUser = async () => {
-    if (session?.user) {
-      const userData = await fetchUserData(session.user.id);
-      if (userData) {
-        setUser(userData);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      // Call backend API to get fresh user data (bypasses RLS)
+      const response = await axios.get(`${API}/auth/me`, {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+
+      if (response.data) {
+        console.log('User data refreshed:', response.data);
+        setUser(response.data);
       }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
     }
   };
 

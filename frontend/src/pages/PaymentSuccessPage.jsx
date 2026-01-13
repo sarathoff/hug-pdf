@@ -97,7 +97,7 @@ const PaymentSuccessPage = () => {
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
           <p className="text-sm text-gray-500 mb-2">Active Plan</p>
           <p className="text-2xl font-bold text-gray-900">
-            {plan === 'lifetime' ? 'Lifetime Access' : 'Pro Monthly'}
+            Pro Plan
           </p>
         </div>
 

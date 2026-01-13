@@ -26,6 +26,7 @@ from services.pdf_service import PDFService
 from services.auth_service import AuthService
 from services.payment_service import PaymentService
 from services.pexels_service import PexelsService
+from services.rephrasy_service import RephrasyService
 from models.session import Session, Message
 from models.user import User, UserCreate, UserLogin, UserResponse
 from dodopayments import DodoPayments
@@ -74,6 +75,7 @@ pdf_service = PDFService()
 auth_service = AuthService()
 payment_service = PaymentService()
 pexels_service = PexelsService()
+rephrasy_service = RephrasyService()
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -140,6 +142,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
 class GenerateInitialRequest(BaseModel):
     prompt: str
     session_id: Optional[str] = None
+    mode: Optional[str] = 'normal'  # 'normal', 'research', 'ebook'
 
 class GenerateInitialResponse(BaseModel):
     session_id: str
@@ -152,6 +155,7 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
     current_html: str
+    mode: Optional[str] = 'normal'  # 'normal', 'research', 'ebook'
 
 class ChatResponse(BaseModel):
     html_content: str
@@ -176,10 +180,51 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+class RephrasyDetectRequest(BaseModel):
+    text: str
+    mode: Optional[str] = ""
+
+class RephrasyDetectResponse(BaseModel):
+    success: bool
+    result: Optional[dict] = None
+    error: Optional[str] = None
+
+class RephrasyHumanizeRequest(BaseModel):
+    text: str
+    model: Optional[str] = "undetectable"
+    language: Optional[str] = None
+    words_based_pricing: Optional[bool] = True
+    return_costs: Optional[bool] = True
+
+class RephrasyHumanizeResponse(BaseModel):
+    success: bool
+    output: Optional[str] = None
+    flesch_score: Optional[float] = None
+    costs: Optional[dict] = None
+    error: Optional[str] = None
+
 # Routes
 @api_router.get("/")
 async def root():
     return {"message": "HugPDF API - Ready"}
+
+@api_router.get("/auth/me")
+async def get_me(current_user: Optional[dict] = Depends(get_current_user)):
+    """Get current user data (bypasses RLS issues)"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Fetch fresh data from DB using admin client
+    try:
+        if supabase_admin:
+            response = supabase_admin.table("users").select("*").eq("user_id", current_user['user_id']).execute()
+            if response.data:
+                return response.data[0]
+        return current_user  # Fallback to token data
+    except Exception as e:
+        logging.error(f"Failed to fetch user data: {e}")
+        return current_user  # Fallback
+
 
 @api_router.post("/generate-initial", response_model=GenerateInitialResponse)
 async def generate_initial(
@@ -188,11 +233,24 @@ async def generate_initial(
 ):
     """Generate initial HTML content from user prompt"""
     try:
+        # Validate mode access for Pro-only features
+        if request.mode in ['research', 'ebook']:
+            if not current_user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Authentication required for research and e-book modes"
+                )
+            if current_user.get('plan') != 'pro':
+                raise HTTPException(
+                    status_code=402,
+                    detail=f"{request.mode.capitalize()} mode is only available for Pro users. Please upgrade to access this feature."
+                )
+        
         # Note: Credits are now deducted on PDF download, not on generation
         remaining_credits = current_user['credits'] if current_user else None
         
-        # Generate HTML using Gemini
-        result = gemini_service.generate_html_from_prompt(request.prompt)
+        # Generate HTML using Gemini with mode support
+        result = gemini_service.generate_html_from_prompt(request.prompt, mode=request.mode)
         
         # Create or get session
         session_id = request.session_id or str(uuid.uuid4())
@@ -229,9 +287,25 @@ async def generate_initial(
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(
+    request: ChatRequest,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
     """Handle chat messages to modify HTML"""
     try:
+        # Validate mode access for Pro-only features
+        if request.mode in ['research', 'ebook']:
+            if not current_user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Authentication required for research and e-book modes"
+                )
+            if current_user.get('plan') != 'pro':
+                raise HTTPException(
+                    status_code=402,
+                    detail=f"{request.mode.capitalize()} mode is only available for Pro users. Please upgrade to access this feature."
+                )
+        
         # Get session from Supabase
         response = supabase.table("sessions").select("*").eq("session_id", request.session_id).execute()
         
@@ -240,11 +314,12 @@ async def chat(request: ChatRequest):
             
         session_data = response.data[0]
         
-        # Modify HTML and LaTeX using Gemini
+        # Modify HTML and LaTeX using Gemini with mode support
         result = gemini_service.modify_html(
             request.current_html, 
             request.message,
-            current_latex=session_data.get('current_latex')
+            current_latex=session_data.get('current_latex'),
+            mode=request.mode
         )
         
         session = Session(**session_data)
@@ -271,14 +346,14 @@ async def chat(request: ChatRequest):
 
 @api_router.post("/preview-pdf")
 async def preview_pdf(request: DownloadPDFRequest):
-    """Generate PDF preview from LaTeX content (no authentication required)"""
+    """Generate PDF preview from LaTeX content (no authentication required, fast single-pass)"""
     try:
         # Use LaTeX if available, otherwise fall back to HTML
         if request.latex_content:
-            pdf_bytes = await pdf_service.generate_pdf(request.latex_content)
+            pdf_bytes = await pdf_service.generate_pdf(request.latex_content, preview_mode=True)
         elif request.html_content:
             # Treat html_content as LaTeX for backward compatibility
-            pdf_bytes = await pdf_service.generate_pdf(request.html_content)
+            pdf_bytes = await pdf_service.generate_pdf(request.html_content, preview_mode=True)
         else:
             raise HTTPException(status_code=400, detail="No content provided for PDF generation")
             
@@ -310,8 +385,8 @@ async def download_pdf(
                 )
             
             # Deduct 1 credit (1 PDF) in Supabase
-            if supabase:
-                supabase.table("users").update({
+            if supabase_admin:
+                supabase_admin.table("users").update({
                     'credits': current_user['credits'] - 1,
                     'updated_at': datetime.now(timezone.utc).isoformat()
                 }).eq('user_id', current_user['user_id']).execute()
@@ -473,8 +548,7 @@ async def payment_success(
         
         # Update credits based on plan
         # Credits now represent PDF downloads: 1 credit = 1 PDF
-        credits_to_add = 2000 if plan == 'lifetime' else 50  # Lifetime: 2000 PDFs, Pro: 50 PDFs/month
-        is_lifetime = plan == 'lifetime'
+        credits_to_add = 50  # Pro: 50 PDFs/month
         
         # Get current user for increment
         resp = supabase.table("users").select("credits").eq("user_id", user_id).execute()
@@ -518,20 +592,12 @@ async def get_pricing():
         'plans': [
             {
                 'id': 'pro',
-                'name': 'Pro Monthly',
-                'price': 9,
+                'name': 'Pro Plan',
+                'price': 5,
                 'billing': 'monthly',
                 'credits': 50,
-                'features': ['50 PDF downloads every month', 'AI-powered PDF generation', 'Unlimited document editing', 'Priority support']
-            },
-            {
-                'id': 'lifetime',
-                'name': 'Lifetime Access',
-                'price': 39,
-                'billing': 'one-time',
-                'credits': 2000,
                 'popular': True,
-                'features': ['2000 PDF downloads', 'Lifetime access', 'All future updates', 'Premium support', 'Early access to new features']
+                'features': ['50 PDF downloads every month', 'AI-powered PDF generation', 'Research papers & resumes', 'E-book creation tools', 'Priority support', 'Commercial license']
             }
         ]
     }
@@ -611,6 +677,66 @@ async def serve_temp_image(filename: str):
         raise HTTPException(status_code=404, detail="Image not found")
     
     return FileResponse(filepath)
+
+@api_router.post("/rephrasy/detect", response_model=RephrasyDetectResponse)
+async def detect_ai_content(
+    request: RephrasyDetectRequest,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Detect if content is AI-generated using Rephrasy API"""
+    try:
+        result = rephrasy_service.detect_ai_content(request.text, request.mode)
+        
+        if result is None:
+            return RephrasyDetectResponse(
+                success=False,
+                error="Rephrasy detection service unavailable or API key not configured"
+            )
+        
+        return RephrasyDetectResponse(
+            success=True,
+            result=result
+        )
+    except Exception as e:
+        logger.error(f"Error in detect_ai_content: {str(e)}")
+        return RephrasyDetectResponse(
+            success=False,
+            error=str(e)
+        )
+
+@api_router.post("/rephrasy/humanize", response_model=RephrasyHumanizeResponse)
+async def humanize_content(
+    request: RephrasyHumanizeRequest,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Humanize AI-generated content using Rephrasy API"""
+    try:
+        result = rephrasy_service.humanize_content(
+            text=request.text,
+            model=request.model,
+            language=request.language,
+            words_based_pricing=request.words_based_pricing,
+            return_costs=request.return_costs
+        )
+        
+        if result is None:
+            return RephrasyHumanizeResponse(
+                success=False,
+                error="Rephrasy humanization service unavailable or API key not configured"
+            )
+        
+        return RephrasyHumanizeResponse(
+            success=True,
+            output=result.get('output'),
+            flesch_score=result.get('new_flesch_score'),
+            costs=result.get('costs')
+        )
+    except Exception as e:
+        logger.error(f"Error in humanize_content: {str(e)}")
+        return RephrasyHumanizeResponse(
+            success=False,
+            error=str(e)
+        )
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):

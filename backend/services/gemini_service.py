@@ -1,8 +1,11 @@
 from google import genai
 from google.genai import types
 import os
-from typing import Dict
+from typing import Dict, Optional
 import logging
+from services.perplexity_service import PerplexityService
+from services.web_scraper_service import WebScraperService
+from services.pexels_service import PexelsService
 
 logger = logging.getLogger(__name__)
 
@@ -12,54 +15,167 @@ class GeminiService:
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
         self.client = genai.Client(api_key=api_key)
+        self.perplexity_service = PerplexityService()
+        self.web_scraper = WebScraperService()
+        self.pexels_service = PexelsService()
         
-    def generate_latex_from_prompt(self, prompt: str) -> str:
-        """Generate LaTeX document from user prompt"""
-        system_prompt = f"""
-You are an expert LaTeX document generator. Create a beautiful, professional LaTeX document based on the user's request.
+    def generate_latex_from_prompt(self, prompt: str, mode: str = 'normal', research_context: Optional[str] = None, citations: Optional[list] = None) -> str:
+        """Generate LaTeX document from user prompt with mode support"""
+        
+        # Base instructions common to all modes
+        base_instructions = """
+CRITICAL:
+1. Use \\usepackage{lmodern} and \\usepackage[margin=1in]{geometry}.
+2. NO 'beramono', 'fvm', 'libertine' fonts.
+3. Use \\vspace{1em} between sections.
 
-IMPORTANT REQUIREMENTS:
-1. Generate COMPLETE LaTeX code starting with \\documentclass
-2. Use appropriate document class (article, report, etc.)
-3. Include necessary packages (geometry, fontenc, inputenc, etc.)
-4. Use professional formatting with proper sections and structure
-5. Set appropriate margins and page layout
-6. Structure content logically
+IMAGES:
+1. Use \\usepackage{graphicx}.
+2. Use \\includegraphics[width=0.8\\textwidth]{URL} for [URL:...] tags.
+"""
+        
+        # Mode-specific prompts
+        if mode == 'ebook':
+            # AUTO-IMAGE INSERTION for E-book: Fetch 3 images
+            ebook_images_section = ""
+            logger.info("Fetching relevant images for E-book Mode...")
+            try:
+                search_query = prompt[:50]
+                pexels_result = self.pexels_service.search_images(search_query, per_page=3)
+                
+                if pexels_result and 'photos' in pexels_result:
+                    image_urls = [photo['src']['large'] for photo in pexels_result['photos'][:3]]
+                    if image_urls:
+                        ebook_images_section = "\n\nAVAILABLE IMAGES (Insert these throughout your eBook):\n"
+                        for i, url in enumerate(image_urls):
+                            ebook_images_section += f"Image {i+1}: {url}\n"
+                        ebook_images_section += "\nINSTRUCTIONS: Use \\includegraphics[width=0.7\\textwidth]{{{url}}} to insert images in relevant chapters.\n"
+            except Exception as e:
+                logger.warning(f"Failed to fetch images for E-book: {e}")
+            
+            system_prompt = f"""
+Act as an expert eBook author. Create a professional 20+ page LaTeX eBook.
 
-CRITICAL FONT & PACKAGE INSTRUCTIONS (TO PREVENT ERRORS):
-1. USE ONLY STANDARD FONTS: Use \\usepackage{{lmodern}} or \\usepackage{{mathptmx}}. 
-2. DO NOT use 'beramono', 'fvm', 'libertine', 'newtxmath', or 'pxfonts'. These cause compilation errors on many systems.
-3. DO NOT use 'amssymb' if you are using a font package that already defines math symbols (like mathptmx).
-4. If in doubt, stick to default Computer Modern or Latin Modern (lmodern).
-5. Ensure all environments (begin/end) are properly closed.
+REQUIREMENTS:
+1. Class: \\documentclass[11pt]{{report}}.
+2. Structure: Title Page, TOC, 5+ Chapters, Conclusion.
+3. Content: detailed, informative, ~20 pages.
+4. Format: \\usepackage{{fancyhdr}}, \\pagenumbering{{arabic}}.
 
-SPACING & LAYOUT QUALITY INSTRUCTIONS (CRITICAL TO PREVENT OVERLAPPING):
-1. ALWAYS use proper spacing between sections: \\vspace{{0.5em}} or \\medskip
-2. For resumes/CVs: Use \\section*{{}} for main sections with \\vspace{{-0.5em}} after if needed
-3. Avoid tight spacing - ensure adequate whitespace between elements
-4. Use \\par or blank lines between paragraphs
-5. For lists: Use proper itemize/enumerate environments with appropriate spacing
-6. For headers with dates: Use \\hfill or tabular to prevent overlap
-7. Set reasonable margins: \\usepackage[margin=0.75in]{{geometry}}
-8. Use \\setlength{{\\parskip}}{{0.5em}} for paragraph spacing
-9. Avoid negative vspace unless absolutely necessary
-10. Test layout: ensure no text overlaps by using proper LaTeX structures
+{base_instructions}
 
-IMAGE HANDLING INSTRUCTIONS:
-1. ALWAYS include \\usepackage{{graphicx}} in the preamble if images are mentioned
-2. When user provides an image URL (in brackets like [URL: ...]), use \\includegraphics{{URL}}
-3. Use appropriate width: \\includegraphics[width=0.5\\textwidth]{{URL}}
-4. Center images: \\begin{{center}} ... \\end{{center}}
-5. Add captions if appropriate: \\begin{{figure}}[h] \\centering \\includegraphics... \\caption{{...}} \\end{{figure}}
+{ebook_images_section}
 
 User request: {prompt}
 
-Generate ONLY the complete LaTeX code, nothing else. No explanations, no markdown code blocks, just the raw LaTeX.
+Generate ONLY the LaTeX code.
+"""
+        elif mode == 'research':
+            research_section = ""
+            citations_section = ""
+            
+            if research_context:
+                research_section = f"""
+PERPLEXITY SUMMARY:
+{research_context}
+"""
+
+            # DEEP RESEARCH: Scrape the citations
+            deep_content = ""
+            if citations:
+                logger.info("Starting Deep Research Scraping...")
+                deep_content = "\nFULL SOURCE CONTENT (Use this for deep analysis):\n"
+                
+                # Limit to top 4 citations to balance speed/coverage
+                for i, url in enumerate(citations[:4]): 
+                    try:
+                        scraped_text = self.web_scraper.scrape_url(url)
+                        if scraped_text:
+                            deep_content += f"\n--- SOURCE {i+1}: {url} ---\n{scraped_text}\n"
+                    except Exception as e:
+                        logger.warning(f"Failed to scrape {url}: {e}")
+                
+                research_section += "\n" + deep_content
+
+            # AUTO-IMAGE INSERTION: Fetch relevant images
+            images_section = ""
+            if citations:  # Only add images if we have research data
+                logger.info("Fetching relevant images for Research Mode...")
+                try:
+                    # Use the prompt as search query (first 50 chars for relevance)
+                    search_query = prompt[:50]
+                    pexels_result = self.pexels_service.search_images(search_query, per_page=1)
+                    
+                    if pexels_result and 'photos' in pexels_result:
+                        image_urls = [photo['src']['large'] for photo in pexels_result['photos'][:1]]
+                        if image_urls:
+                            images_section = "\n\nAVAILABLE IMAGES (Insert these in your document):\n"
+                            for i, url in enumerate(image_urls):
+                                images_section += f"Image {i+1}: {url}\n"
+                            images_section += "\nINSTRUCTIONS: Use \\includegraphics[width=0.7\\textwidth]{{{url}}} to insert images at relevant sections.\n"
+                            research_section += images_section
+                except Exception as e:
+                    logger.warning(f"Failed to fetch images: {e}")
+
+            
+            if citations:
+                citations_list = "\\n".join([f"[{i+1}] {cite}" for i, cite in enumerate(citations)])
+                citations_section = f"""
+AVAILABLE CITATIONS:
+{citations_list}
+
+CITATION INSTRUCTIONS:
+1. You MUST use the provided citations in your text as [1], [2], etc. where appropriate.
+2. You MUST include a 'References' section at the end of the document.
+3. The References section MUST list the citations exactly as provided above.
+4. Do NOT make up new citations. Use ONLY the provided ones.
+"""
+
+            system_prompt = f"""
+Act as an academic researcher. Create a cited LaTeX research paper based STRICTLY on the provided research data and citations.
+
+REQUIREMENTS:
+1. Class: \\documentclass[12pt]{{article}}.
+2. Sections: Abstract, Introduction, Key Findings (Bulleted), Analysis, Discussion, Conclusion, References.
+3. Tone: Formal, objective, academic.
+4. Content: Synthesize the provided RESEARCH DATA. Do not just copy it.
+5. Citations: deeply integrate the provided citations [1], [2] etc. into the text.
+6. Length: Comprehensive (aim for 1000+ words).
+7. Formatting: Use \\textbf{{..}} for key terms. Use \\begin{{itemize}} for lists.
+8. Analysis: Provide critical insights and comparisons, not just summary.
+
+{base_instructions}
+
+{research_section}
+
+{citations_section}
+
+User request: {prompt}
+
+Generate ONLY the LaTeX code.
+"""
+        else:  # normal mode
+            system_prompt = f"""
+Act as a fast LaTeX document generator. Create a clean, professional document.
+
+REQUIREMENTS:
+1. Class: \\documentclass{{article}}.
+2. Layout: Clean, use \\section and \\subsection.
+3. Speed: Be concise but effective. Focus on clear formatting.
+
+{base_instructions}
+
+User request: {prompt}
+
+Generate ONLY the LaTeX code.
 """
         
         try:
+            # Use consistent model (Flash is reliable, Pro returned 404)
+            model_name = 'gemini-2.0-flash-exp'
+            
             response = self.client.models.generate_content(
-                model='gemini-2.5-flash',
+                model=model_name,
                 contents=system_prompt
             )
             latex_content = response.text.strip()
@@ -73,22 +189,71 @@ Generate ONLY the complete LaTeX code, nothing else. No explanations, no markdow
                 latex_content = latex_content[:-3]
             
             latex_content = latex_content.strip()
+
+            # FALLBACK: Ensure citations are present in Research Mode
+            if mode == 'research' and citations:
+                # Check if References section exists (heuristics)
+                has_references = '\\section*{References}' in latex_content or '\\bibliography' in latex_content or '\\begin{thebibliography}' in latex_content
+                
+                if not has_references:
+                    logger.warning("Gemini failed to generate References section. Appending manually.")
+                    
+                    # Create the References section manually
+                    references_latex = "\n\n\\section*{References}\n\\begin{enumerate}\n"
+                    for cite in citations:
+                        # Escape special LaTeX characters in citations if needed, mostly clean text expected
+                        references_latex += f"    \\item {cite}\n"
+                    references_latex += "\\end{enumerate}\n"
+                    
+                    # Insert before \end{document}
+                    if '\\end{document}' in latex_content:
+                        latex_content = latex_content.replace('\\end{document}', references_latex + '\\end{document}')
+                    else:
+                        latex_content += references_latex
             
-            logger.info(f"Generated LaTeX document for prompt: {prompt[:50]}...")
+            logger.info(f"Generated LaTeX document ({mode} mode) for prompt: {prompt[:50]}...")
             return latex_content
         except Exception as e:
             logger.error(f"Error generating LaTeX: {str(e)}")
             raise
     
-    def generate_html_from_prompt(self, prompt: str) -> Dict[str, str]:
-        """Generate LaTeX document from user prompt"""
-        latex_content = self.generate_latex_from_prompt(prompt)
+    def generate_html_from_prompt(self, prompt: str, mode: str = 'normal') -> Dict[str, str]:
+        """Generate LaTeX document from user prompt with mode support"""
         
-        logger.info(f"Generated LaTeX for prompt: {prompt[:50]}...")
+        # For research mode, get research context from Perplexity
+        research_context = None
+        citations = []
+        
+        if mode == 'research':
+            logger.info(f"Research mode: Querying Perplexity for: {prompt[:50]}...")
+            research_result = self.perplexity_service.research_query(prompt)
+            
+            if research_result:
+                research_context = research_result.get('content', '')
+                citations = research_result.get('citations', [])
+                logger.info(f"Research completed with {len(citations)} citations")
+            else:
+                logger.warning("Perplexity research failed, falling back to normal mode")
+                mode = 'normal'
+        
+        latex_content = self.generate_latex_from_prompt(prompt, mode=mode, research_context=research_context, citations=citations)
+        
+
+        
+        # Mode-specific messages
+        if mode == 'ebook':
+            message = "I've generated your e-book in LaTeX! This is a comprehensive document with chapters and sections. Feel free to ask me to modify anything!"
+        elif mode == 'research':
+            message = "I've generated your research document with citations! Check the References section at the end. Feel free to ask me to modify anything!"
+        else:
+            message = "I've generated your document in LaTeX. You can see the code on the right. Feel free to ask me to modify anything!"
+        
+        logger.info(f"Generated LaTeX ({mode} mode) for prompt: {prompt[:50]}...")
         return {
-            "html": latex_content,  # Send LaTeX as 'html' for backward compatibility
+            "html": latex_content,
             "latex": latex_content,
-            "message": "I've generated your document in LaTeX. You can see the code on the right. Feel free to ask me to modify anything!"
+            "message": message,
+            "mode": mode
         }
     
     def modify_latex(self, current_latex: str, modification_request: str) -> str:
@@ -152,18 +317,29 @@ Generate ONLY the complete modified LaTeX code, nothing else. No explanations, n
             logger.error(f"Error modifying LaTeX: {str(e)}")
             raise
     
-    def modify_html(self, current_html: str, modification_request: str, current_latex: str = None) -> Dict[str, str]:
-        """Modify existing LaTeX based on user request"""
+    def modify_html(self, current_html: str, modification_request: str, current_latex: str = None, mode: str = 'normal') -> Dict[str, str]:
+        """Modify existing LaTeX based on user request with mode support"""
         # Use current_latex if provided, otherwise use current_html (which is actually LaTeX)
         latex_to_modify = current_latex if current_latex else current_html
+        
+        # For research mode modifications, optionally get new research
+        if mode == 'research' and ('research' in modification_request.lower() or 'find' in modification_request.lower()):
+            logger.info(f"Research mode modification: Querying Perplexity...")
+            research_result = self.perplexity_service.research_query(modification_request)
+            
+            if research_result:
+                research_context = research_result.get('content', '')
+                # Add research context to modification request
+                modification_request += f"\n\nAdditional research context: {research_context}"
         
         latex_content = self.modify_latex(latex_to_modify, modification_request)
         
         result = {
-            "html": latex_content,  # Send LaTeX as 'html' for backward compatibility
+            "html": latex_content,
             "latex": latex_content,
-            "message": "I've updated the document based on your request."
+            "message": "I've updated the document based on your request.",
+            "mode": mode
         }
         
-        logger.info(f"Modified LaTeX based on request: {modification_request[:50]}...")
+        logger.info(f"Modified LaTeX ({mode} mode) based on request: {modification_request[:50]}...")
         return result

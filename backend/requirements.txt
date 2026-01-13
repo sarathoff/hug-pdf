@@ -99,4 +99,5 @@ weasyprint==67.0
 webencodings==0.5.1
 pylatex==1.4.2
 supabase==2.10.0
+beautifulsoup4==4.14.3
 zopfli==0.4.0
