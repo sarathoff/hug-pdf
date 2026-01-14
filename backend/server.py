@@ -457,7 +457,7 @@ async def create_checkout(
 async def payment_success(
     plan: str,
     user_id: str,
-    session_id: Optional[str] = None,
+    session_id: str,
     current_user: Optional[dict] = Depends(get_current_user)
 ):
     """Handle successful payment - REQUIRES AUTHENTICATION AND PAYMENT VERIFICATION"""
