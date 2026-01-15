@@ -709,14 +709,24 @@ const EditorPage = () => {
                                 }}
                                 className="min-h-[50px] max-h-[120px] bg-transparent border-0 focus-visible:ring-0 resize-none p-2 text-sm leading-normal w-full"
                             />
-                            <Button
-                                size="icon"
-                                className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                                onClick={handleSendMessage}
-                                disabled={!input.trim() || loading || !sessionId}
-                            >
-                                <Send className="h-4 w-4" />
-                            </Button>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="icon"
+                                            className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                            onClick={handleSendMessage}
+                                            disabled={!input.trim() || loading || !sessionId}
+                                            aria-label="Send message"
+                                        >
+                                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Send message</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
                     </div>
                 </div>
