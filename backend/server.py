@@ -525,8 +525,8 @@ async def payment_success(
     else:
         # No session_id provided - this is suspicious in production
         logger.warning(f"Payment success called without session_id for user {user_id}")
-        # For now, we'll allow it but log it. In strict mode, you should reject this.
-        # raise HTTPException(status_code=400, detail="Payment session ID required")
+        # Enforcing strict mode: reject payments without session_id
+        raise HTTPException(status_code=400, detail="Payment session ID required")
         
     try:
         # Check if this payment has already been processed (idempotency check)
