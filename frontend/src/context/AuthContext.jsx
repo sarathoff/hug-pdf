@@ -164,19 +164,27 @@ export const AuthProvider = ({ children }) => {
           const { data, error } = await supabase.auth.refreshSession();
           if (error) {
             console.error('Token refresh failed:', error);
-            // If refresh fails, log the user out
-            await supabase.auth.signOut();
-            setSession(null);
-            setUser(null);
+
+            // Only log out on critical auth errors, not network issues
+            // Check if it's an auth error (invalid_grant, etc.) vs network error
+            if (error.message?.includes('invalid') || error.message?.includes('expired')) {
+              console.warn('Critical auth error, logging out user');
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+            } else {
+              console.warn('Token refresh failed but keeping user logged in. Will retry on next attempt.');
+              // Don't log out - user can continue using the app
+              // The next API call will trigger a new refresh attempt
+            }
           } else {
             console.log('Token refreshed successfully');
             setSession(data.session);
           }
         } catch (err) {
           console.error('Token refresh error:', err);
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
+          // Don't automatically log out on network errors
+          console.warn('Token refresh error, but keeping user logged in');
         }
       }, refreshIn);
 
