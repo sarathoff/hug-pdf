@@ -463,6 +463,7 @@ async def payment_success(
     plan: str,
     user_id: str,
     session_id: Optional[str] = None,
+    payment_id: Optional[str] = None,
     current_user: Optional[dict] = Depends(get_current_user)
 ):
     """Handle successful payment - Verifies payment session and updates user credits"""
@@ -477,16 +478,17 @@ async def payment_success(
             raise HTTPException(status_code=403, detail="Cannot modify another user's credits")
     
     # CASE 2: Unauthenticated User (Session verification required)
-    elif not session_id:
-        # If not logged in AND no session ID, we can't do anything
-        raise HTTPException(status_code=401, detail="Authentication required or valid session ID missing")
+    elif not session_id and not payment_id:
+        # If not logged in AND no session/payment ID, we can't do anything
+        raise HTTPException(status_code=401, detail="Authentication required or valid session/payment ID missing")
     
-    # SECURITY: Verify payment with Dodo Payments if session_id is provided
+    # SECURITY: Verify payment with Dodo Payments if session_id or payment_id is provided
     # This is critical for unauthenticated requests and highly recommended for authenticated ones
-    if session_id:
+    verification_id = session_id or payment_id
+    if verification_id:
         # Allow test sessions for local development
-        if session_id.startswith('test_session_'):
-            logger.warning(f"TEST SESSION: Bypassing Dodo verification for {session_id}")
+        if verification_id.startswith('test_session_'):
+            logger.warning(f"TEST SESSION: Bypassing Dodo verification for {verification_id}")
             # For test sessions, we MUST trust the input user_id if unauthenticated
             # In production, test sessions should be disabled or strictly controlled
         else:
@@ -503,28 +505,37 @@ async def payment_success(
                     'Content-Type': 'application/json'
                 }
             
-                # Get checkout session details from Dodo
+                # Get checkout session/payment details from Dodo
+                # Try checkouts endpoint first (for sessions), then payments endpoint (for one-time payments)
                 response = requests.get(
-                    f'https://live.dodopayments.com/checkouts/{session_id}',
+                    f'https://live.dodopayments.com/checkouts/{verification_id}',
                     headers=headers,
                     timeout=10
                 )
                 
+                # If checkout not found, try payments endpoint
+                if response.status_code == 404 and payment_id:
+                    response = requests.get(
+                        f'https://live.dodopayments.com/payments/{payment_id}',
+                        headers=headers,
+                        timeout=10
+                    )
+                
                 if response.status_code != 200:
-                    logger.error(f"Failed to verify payment session {session_id}: {response.status_code}")
+                    logger.error(f"Failed to verify payment {verification_id}: {response.status_code}")
                     raise HTTPException(status_code=400, detail="Payment verification failed")
                 
                 session_data = response.json()
                 
                 # Log the full session data for debugging
-                logger.info(f"Dodo session data for {session_id}: {session_data}")
+                logger.info(f"Dodo payment data for {verification_id}: {session_data}")
                 
                 # Verify the session is completed/paid
                 session_status = session_data.get('status')
                 valid_statuses = ['completed', 'paid', 'succeeded', 'free']
                 
                 if session_status not in valid_statuses:
-                    logger.warning(f"Payment session {session_id} has invalid status: {session_status}")
+                    logger.warning(f"Payment {verification_id} has invalid status: {session_status}")
                     raise HTTPException(status_code=400, detail=f"Payment not completed. Status: {session_status}")
                 
                 # Verify user_id matches the one in metadata (TRUSTED SOURCE)
@@ -540,23 +551,23 @@ async def payment_success(
                     logger.warning(f"Plan mismatch: Request {plan} != Metadata {metadata_plan}, using metadata plan")
                     plan = metadata_plan
                 
-                logger.info(f"Payment verified for user {user_id} via Dodo Session {session_id}")
+                logger.info(f"Payment verified for user {user_id} via Dodo {verification_id}")
                 
             except requests.RequestException as e:
                 logger.error(f"Error verifying payment with Dodo: {str(e)}")
                 raise HTTPException(status_code=503, detail="Payment verification service unavailable")
     else:
-        # This block is reached if authenticated but no session_id provided
-        logger.warning(f"Payment success called without session_id for user {user_id}")
+        # This block is reached if authenticated but no session_id/payment_id provided
+        logger.warning(f"Payment success called without session_id/payment_id for user {user_id}")
         
     try:
         # Check if this payment has already been processed (idempotency check)
-        if session_id:
+        if verification_id:
             try:
-                # Check if we've already processed this session
-                existing = supabase_admin.table("payment_sessions").select("*").eq("session_id", session_id).execute()
+                # Check if we've already processed this session/payment
+                existing = supabase_admin.table("payment_sessions").select("*").eq("session_id", verification_id).execute()
                 if existing.data:
-                    logger.warning(f"Payment session {session_id} already processed, skipping credit addition")
+                    logger.warning(f"Payment {verification_id} already processed, skipping credit addition")
                     return {
                         'success': True, 
                         'message': 'Payment already processed',
@@ -613,10 +624,10 @@ async def payment_success(
         logger.info(f"User {user_id} updated successfully: {update_response.data}")
         
         # Record this payment session to prevent duplicates (optional)
-        if session_id:
+        if verification_id:
             try:
                 supabase_admin.table("payment_sessions").insert({
-                    'session_id': session_id,
+                    'session_id': verification_id,
                     'user_id': user_id,
                     'plan': plan,
                     'credits_added': credits_to_add,
