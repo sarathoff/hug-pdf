@@ -77,20 +77,30 @@ const PaymentSuccessPage = () => {
         // If no token yet, wait a bit for auth to initialize
         if (!token) {
           console.log('Token not available yet, waiting for authentication...');
-          // Wait up to 3 seconds for token to be available
-          for (let i = 0; i < 6; i++) {
+          // Wait up to 2 seconds for token to be available (reduced from 3)
+          let tokenFound = false;
+          for (let i = 0; i < 4; i++) {
             await new Promise(resolve => setTimeout(resolve, 500));
             // Check if token is now available (need to get it from auth context)
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
               console.log('Token now available, processing payment...');
+              tokenFound = true;
               handlePaymentSuccess(plan, userId, sessionId);
               return;
             }
           }
-          // If still no token after 3 seconds, try anyway (might work if user is already logged in)
-          console.log('Proceeding without token check...');
+
+          // If no token after 2 seconds, user might not be logged in
+          if (!tokenFound) {
+            console.error('No authentication token found after waiting. User may need to log in.');
+            setLoading(false);
+            alert('Please log in to complete your payment verification. Your payment was successful, but you need to be logged in to activate your plan.');
+            return;
+          }
         }
+
+        // Token is available, process payment
         handlePaymentSuccess(plan, userId, sessionId);
       };
 
