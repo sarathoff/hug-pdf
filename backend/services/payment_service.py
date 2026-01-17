@@ -90,7 +90,7 @@ class PaymentService:
                 'customer': {
                     'email': email
                 },
-                'return_url': f'{frontend_url}/payment/success?plan={plan}&user_id={user_id}',
+                'return_url': f'{frontend_url}/payment/success?plan={plan}&user_id={user_id}&session_id={{CHECKOUT_SESSION_ID}}',
                 'metadata': {
                     'user_id': user_id,
                     'plan': plan,
