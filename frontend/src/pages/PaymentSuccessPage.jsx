@@ -21,6 +21,10 @@ const PaymentSuccessPage = () => {
   const processedRef = React.useRef(false);
 
   const handlePaymentSuccess = useCallback(async (planId, userId, sessionId) => {
+    console.log('=== handlePaymentSuccess called ===');
+    console.log('Plan:', planId, 'User:', userId, 'Session:', sessionId);
+    console.log('Token available:', !!token);
+
     try {
       const params = {
         plan: planId,
@@ -45,10 +49,14 @@ const PaymentSuccessPage = () => {
       setPlan(response.data.plan);
 
       if (refreshUser) {
+        console.log('Refreshing user data...');
         await refreshUser();
+        console.log('User data refreshed successfully');
       }
     } catch (error) {
-      console.error('Error processing payment:', error);
+      console.error('=== Error processing payment ===');
+      console.error('Error details:', error);
+      console.error('Error response:', error.response);
 
       // Extract detailed error message from backend
       const errorMessage = error.response?.data?.detail || error.message || 'Unknown error occurred';
@@ -80,9 +88,10 @@ const PaymentSuccessPage = () => {
           // Wait up to 2 seconds for token to be available (reduced from 3)
           let tokenFound = false;
           for (let i = 0; i < 4; i++) {
+            console.log(`Checking for token... attempt ${i + 1}/4`);
             await new Promise(resolve => setTimeout(resolve, 500));
-            // Check if token is now available (need to get it from auth context)
             const { data: { session } } = await supabase.auth.getSession();
+            console.log('Session check result:', session ? 'Session exists' : 'No session');
             if (session?.access_token) {
               console.log('Token now available, processing payment...');
               tokenFound = true;
@@ -98,6 +107,8 @@ const PaymentSuccessPage = () => {
             alert('Please log in to complete your payment verification. Your payment was successful, but you need to be logged in to activate your plan.');
             return;
           }
+        } else {
+          console.log('Token already available, processing payment immediately...');
         }
 
         // Token is available, process payment
