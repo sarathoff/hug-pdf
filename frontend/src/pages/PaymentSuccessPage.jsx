@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Home, Loader2 } from 'lucide-react';
+import { CheckCircle, Home, Loader2, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
@@ -16,6 +16,7 @@ const PaymentSuccessPage = () => {
   const [loading, setLoading] = React.useState(true);
   const [credits, setCredits] = React.useState(0);
   const [plan, setPlan] = React.useState('');
+  const [error, setError] = React.useState(null);
 
   // Prevent duplicate payment processing
   const processedRef = React.useRef(false);
@@ -70,12 +71,11 @@ const PaymentSuccessPage = () => {
     } catch (error) {
       console.error('=== Error processing payment ===');
       console.error('Error details:', error);
-      console.error('Error response:', error.response);
 
-      // Extract detailed error message from backend
       const errorMessage = error.response?.data?.detail || error.message || 'Unknown error occurred';
 
-      alert(`Payment verification failed: ${errorMessage}\n\nPlease contact support if you were charged. Include this session ID: ${sessionId || 'N/A'}`);
+      // Set error state instead of alerting
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -137,6 +137,10 @@ const PaymentSuccessPage = () => {
     }
   }, [searchParams, handlePaymentSuccess, token]);
 
+
+
+  // ... useEffect hooks ...
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
@@ -149,6 +153,48 @@ const PaymentSuccessPage = () => {
     );
   }
 
+  // FAIL STATE UI
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-6">
+            <XCircle className="w-12 h-12 text-red-600" />
+          </div>
+
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            Payment Failed
+          </h1>
+          <p className="text-lg text-gray-600 mb-8">
+            We couldn't verify your payment.
+          </p>
+
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-8 text-left">
+            <p className="text-sm text-red-800 font-medium">Error details:</p>
+            <p className="text-sm text-red-600 mt-1">{error}</p>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              onClick={() => navigate('/pricing')}
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-xl font-medium"
+            >
+              Try Again
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/')}
+              className="w-full"
+            >
+              Go to Homepage
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // SUCCESS STATE UI (Default)
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center">
@@ -162,14 +208,14 @@ const PaymentSuccessPage = () => {
           Payment Successful!
         </h1>
         <p className="text-lg text-gray-600 mb-8">
-          Your account has been credited with <span className="font-bold text-blue-600">{credits} credits</span>.
+          Your account has been credited with <span className="font-bold text-blue-600">{credits || 0} credits</span>.
         </p>
 
         {/* Plan Info */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
           <p className="text-sm text-gray-500 mb-2">Active Plan</p>
           <p className="text-2xl font-bold text-gray-900">
-            Pro Plan
+            {plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
           </p>
         </div>
 

@@ -27,6 +27,14 @@ class PaymentService:
                     'name': 'Pro Plan (Test)',
                     'description': '50 PDF downloads every month',
                     'billing': 'monthly'
+                },
+                'credit_topup': {
+                    'product_id': 'pdt_test_topup_20',  # Test mode product ID
+                    'price': 200,  # $2.00 in cents
+                    'credits': 20,  # 20 PDF downloads
+                    'name': 'Credit Top-Up (Test)',
+                    'description': '20 credits (One-time)',
+                    'billing': 'one-time'
                 }
             }
         else:
@@ -38,6 +46,14 @@ class PaymentService:
                     'name': 'Pro Plan',
                     'description': '50 PDF downloads every month',
                     'billing': 'monthly'
+                },
+                'credit_topup': {
+                    'product_id': 'pdt_0NWV65ozKz7CyPKyrCJTx',  # Live mode product ID
+                    'price': 200,  # $2.00 in cents
+                    'credits': 20,
+                    'name': 'Credit Top-Up',
+                    'description': '20 credits (One-time)',
+                    'billing': 'one-time'
                 }
             }
         

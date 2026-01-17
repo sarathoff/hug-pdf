@@ -243,10 +243,11 @@ async def generate_initial(
                     status_code=401,
                     detail="Authentication required for research and e-book modes"
                 )
-            if current_user.get('plan') != 'pro':
+            # Allow Pro users and On-Demand users (who bought top-ups)
+            if current_user.get('plan') not in ['pro', 'on_demand']:
                 raise HTTPException(
                     status_code=402,
-                    detail=f"{request.mode.capitalize()} mode is only available for Pro users. Please upgrade to access this feature."
+                    detail=f"{request.mode.capitalize()} mode is only available for Pro or On-Demand users. Please upgrade or top-up to access this feature."
                 )
         
         # Note: Credits are now deducted on PDF download, not on generation
@@ -303,10 +304,11 @@ async def chat(
                     status_code=401,
                     detail="Authentication required for research and e-book modes"
                 )
-            if current_user.get('plan') != 'pro':
+            # Allow Pro users and On-Demand users (who bought top-ups)
+            if current_user.get('plan') not in ['pro', 'on_demand']:
                 raise HTTPException(
                     status_code=402,
-                    detail=f"{request.mode.capitalize()} mode is only available for Pro users. Please upgrade to access this feature."
+                    detail=f"{request.mode.capitalize()} mode is only available for Pro or On-Demand users. Please upgrade or top-up to access this feature."
                 )
         
         # Get session from Supabase
@@ -566,22 +568,39 @@ async def payment_success(
                 logger.info(f"Could not check payment_sessions table (may not exist): {e}")
         
         # Update credits based on plan
-        credits_to_add = 50  # Pro: 50 PDFs/month
+        if plan == 'credit_topup':
+            credits_to_add = 20
+        else:
+            credits_to_add = 50  # Pro: 50 PDFs/month
         
-        # Get current user for increment
-        resp = supabase.table("users").select("credits").eq("user_id", user_id).execute()
+        # Get current user details to determine plan update strategy
+        resp = supabase.table("users").select("credits, plan").eq("user_id", user_id).execute()
         if not resp.data:
-            # If user doesn't exist yet (rare race condition if new user buys immediately), try to create?
-            # Or just fail? Usually users exist before buying.
             raise HTTPException(status_code=404, detail="User not found")
         
-        new_credits = resp.data[0]['credits'] + credits_to_add
+        current_db_user = resp.data[0]
+        new_credits = current_db_user['credits'] + credits_to_add
+        current_plan = current_db_user['plan']
         
-        logger.info(f"Updating user {user_id}: plan={plan}, new_credits={new_credits}")
+        # Determine new plan
+        # If buying Pro, set to Pro.
+        # If buying Top-up:
+        #   - If currently Free -> Upgrade to 'on_demand' (unlocks features)
+        #   - If currently Pro -> Stay Pro
+        #   - If currently On_Demand -> Stay On_Demand
+        if plan == 'credit_topup':
+            if current_plan == 'pro':
+                final_plan = 'pro'
+            else:
+                final_plan = 'on_demand'
+        else:
+            final_plan = plan  # e.g., 'pro'
+        
+        logger.info(f"Updating user {user_id}: old_plan={current_plan}, new_plan={final_plan}, new_credits={new_credits}")
         
         # Update user plan and credits using admin client to bypass RLS
         update_response = supabase_admin.table("users").update({
-            'plan': plan,
+            'plan': final_plan,
             'credits': new_credits,
             'updated_at': datetime.now(timezone.utc).isoformat()
         }).eq('user_id', user_id).execute()
@@ -634,6 +653,15 @@ async def get_pricing():
                 'credits': 50,
                 'popular': True,
                 'features': ['50 PDF downloads every month', 'AI-powered PDF generation', 'Research papers & resumes', 'E-book creation tools', 'Priority support', 'Commercial license']
+            },
+            {
+                'id': 'credit_topup',
+                'name': 'Credit Top-Up',
+                'price': 2,
+                'billing': 'one-time',
+                'credits': 20,
+                'popular': False,
+                'features': ['20 Credits added instantly', 'Unlocks Research & E-book modes', 'Removes Watermarks', 'Never expires', 'One-time payment']
             }
         ]
     }
