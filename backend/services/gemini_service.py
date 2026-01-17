@@ -6,6 +6,7 @@ import logging
 from services.perplexity_service import PerplexityService
 from services.web_scraper_service import WebScraperService
 from services.pexels_service import PexelsService
+from services.cache_service import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +19,11 @@ class GeminiService:
         self.perplexity_service = PerplexityService()
         self.web_scraper = WebScraperService()
         self.pexels_service = PexelsService()
+        self.cache_service = CacheService()
+        self.CACHE_VERSION = "v1"  # Increment when changing prompts
         
-    def generate_latex_from_prompt(self, prompt: str, mode: str = 'normal', research_context: Optional[str] = None, citations: Optional[list] = None) -> str:
-        """Generate LaTeX document from user prompt with mode support"""
+    def generate_latex_from_prompt(self, prompt: str, mode: str = 'normal', tier: str = 'pro', research_context: Optional[str] = None, citations: Optional[list] = None) -> str:
+        """Generate LaTeX document from user prompt with mode and tier support"""
         
         # Base instructions common to all modes
         base_instructions = """
@@ -171,13 +174,38 @@ Generate ONLY the LaTeX code.
 """
         
         try:
-            # Use consistent model (Flash is reliable, Pro returned 404)
-            model_name = 'gemini-2.0-flash-exp'
+            # Use tier-based model selection
+            # Starter: Flash-8B (cheapest, ~10x cheaper than Flash 2.0)
+            # Pro/Power: Flash 2.0 (best quality)
+            model_name = 'gemini-1.5-flash-8b' if tier == 'starter' else 'gemini-2.0-flash-exp'
             
-            response = self.client.models.generate_content(
+            # Create cache key for this mode and tier
+            cache_key = f"{mode}_{tier}_{self.CACHE_VERSION}"
+            
+            # Get or create cached system prompt (1 hour TTL)
+            cached_prompt_name = self.cache_service.get_or_create_cache(
+                cache_key=cache_key,
+                system_instruction=system_prompt,
                 model=model_name,
-                contents=system_prompt
+                ttl_seconds=3600  # 1 hour
             )
+            
+            # Generate content using cached system prompt
+            if cached_prompt_name:
+                response = self.client.models.generate_content(
+                    model=model_name,
+                    contents=system_prompt,  # Full prompt for now, will optimize later
+                    cached_content=cached_prompt_name
+                )
+                logger.info(f"Generated with cached prompt: {cache_key}")
+            else:
+                # Fallback to non-cached generation
+                response = self.client.models.generate_content(
+                    model=model_name,
+                    contents=system_prompt
+                )
+                logger.warning(f"Cache miss, generated without cache for mode: {mode}, tier: {tier}")
+            
             latex_content = response.text.strip()
             
             # Clean up potential markdown formatting
@@ -217,8 +245,8 @@ Generate ONLY the LaTeX code.
             logger.error(f"Error generating LaTeX: {str(e)}")
             raise
     
-    def generate_html_from_prompt(self, prompt: str, mode: str = 'normal') -> Dict[str, str]:
-        """Generate LaTeX document from user prompt with mode support"""
+    def generate_html_from_prompt(self, prompt: str, mode: str = 'normal', tier: str = 'pro') -> Dict[str, str]:
+        """Generate LaTeX document from user prompt with mode and tier support"""
         
         # For research mode, get research context from Perplexity
         research_context = None
@@ -236,7 +264,7 @@ Generate ONLY the LaTeX code.
                 logger.warning("Perplexity research failed, falling back to normal mode")
                 mode = 'normal'
         
-        latex_content = self.generate_latex_from_prompt(prompt, mode=mode, research_context=research_context, citations=citations)
+        latex_content = self.generate_latex_from_prompt(prompt, mode=mode, tier=tier, research_context=research_context, citations=citations)
         
 
         

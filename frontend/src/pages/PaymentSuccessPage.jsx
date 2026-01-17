@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Home } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -31,10 +32,14 @@ const PaymentSuccessPage = () => {
         params.session_id = sessionId;
       }
 
+      console.log('Processing payment with params:', params);
+
       const response = await axios.post(`${API}/payment/success`, null, {
         params: params,
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
+
+      console.log('Payment success response:', response.data);
 
       setCredits(response.data.credits_added);
       setPlan(response.data.plan);
@@ -44,7 +49,11 @@ const PaymentSuccessPage = () => {
       }
     } catch (error) {
       console.error('Error processing payment:', error);
-      alert('Payment verification failed. Please contact support if you were charged.');
+
+      // Extract detailed error message from backend
+      const errorMessage = error.response?.data?.detail || error.message || 'Unknown error occurred';
+
+      alert(`Payment verification failed: ${errorMessage}\n\nPlease contact support if you were charged. Include this session ID: ${sessionId || 'N/A'}`);
     } finally {
       setLoading(false);
     }
@@ -62,9 +71,32 @@ const PaymentSuccessPage = () => {
 
     if (plan && userId) {
       processedRef.current = true;
-      handlePaymentSuccess(plan, userId, sessionId);
+
+      // Wait for token to be available (user might be redirected from payment before auth is ready)
+      const processPayment = async () => {
+        // If no token yet, wait a bit for auth to initialize
+        if (!token) {
+          console.log('Token not available yet, waiting for authentication...');
+          // Wait up to 3 seconds for token to be available
+          for (let i = 0; i < 6; i++) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // Check if token is now available (need to get it from auth context)
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              console.log('Token now available, processing payment...');
+              handlePaymentSuccess(plan, userId, sessionId);
+              return;
+            }
+          }
+          // If still no token after 3 seconds, try anyway (might work if user is already logged in)
+          console.log('Proceeding without token check...');
+        }
+        handlePaymentSuccess(plan, userId, sessionId);
+      };
+
+      processPayment();
     }
-  }, [searchParams, handlePaymentSuccess]);
+  }, [searchParams, handlePaymentSuccess, token]);
 
   if (loading) {
     return (

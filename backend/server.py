@@ -217,9 +217,12 @@ async def get_me(current_user: Optional[dict] = Depends(get_current_user)):
     # Fetch fresh data from DB using admin client
     try:
         if supabase_admin:
+            logger.info(f"Fetching user data for user_id: {current_user['user_id']}")
             response = supabase_admin.table("users").select("*").eq("user_id", current_user['user_id']).execute()
             if response.data:
+                logger.info(f"Returning user data: {response.data[0]}")
                 return response.data[0]
+        logger.warning("Supabase admin client not available, returning token data")
         return current_user  # Fallback to token data
     except Exception as e:
         logging.error(f"Failed to fetch user data: {e}")
@@ -505,10 +508,20 @@ async def payment_success(
                 
                 session_data = response.json()
                 
+                # Log the full session data for debugging
+                logger.info(f"Dodo session data for {session_id}: {session_data}")
+                
                 # Verify the session is completed/paid
+                # Accept multiple valid statuses for different payment scenarios:
+                # - 'completed': Regular paid checkout
+                # - 'paid': Alternative success status
+                # - 'succeeded': Another success variant
+                # - 'free': 100% discount/free checkout
                 session_status = session_data.get('status')
-                if session_status != 'completed':
-                    logger.warning(f"Payment session {session_id} status is {session_status}, not completed")
+                valid_statuses = ['completed', 'paid', 'succeeded', 'free']
+                
+                if session_status not in valid_statuses:
+                    logger.warning(f"Payment session {session_id} has invalid status: {session_status}")
                     raise HTTPException(status_code=400, detail=f"Payment not completed. Status: {session_status}")
                 
                 # Verify the metadata matches
@@ -557,11 +570,21 @@ async def payment_success(
         
         new_credits = resp.data[0]['credits'] + credits_to_add
         
-        supabase_admin.table("users").update({
+        logger.info(f"Updating user {user_id}: plan={plan}, new_credits={new_credits}")
+        
+        # Update user plan and credits using admin client to bypass RLS
+        update_response = supabase_admin.table("users").update({
             'plan': plan,
             'credits': new_credits,
             'updated_at': datetime.now(timezone.utc).isoformat()
         }).eq('user_id', user_id).execute()
+        
+        # Verify the update was successful
+        if not update_response.data:
+            logger.error(f"Failed to update user {user_id} - no data returned from update")
+            raise HTTPException(status_code=500, detail="Failed to update user plan and credits")
+        
+        logger.info(f"User {user_id} updated successfully: {update_response.data}")
         
         # Record this payment session to prevent duplicates (optional)
         if session_id:
@@ -578,7 +601,15 @@ async def payment_success(
                 logger.info(f"Could not record payment session (table may not exist): {e}")
         
         logger.info(f"Added {credits_to_add} credits to user {user_id} for plan {plan}")
-        return {'success': True, 'credits_added': credits_to_add, 'plan': plan}
+        
+        # Return comprehensive response with updated user data
+        return {
+            'success': True, 
+            'credits_added': credits_to_add, 
+            'plan': plan,
+            'new_total_credits': new_credits,
+            'message': f'Successfully upgraded to {plan} plan with {credits_to_add} credits added'
+        }
     except HTTPException:
         raise
     except Exception as e:
