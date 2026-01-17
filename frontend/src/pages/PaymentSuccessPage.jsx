@@ -21,9 +21,9 @@ const PaymentSuccessPage = () => {
   // Prevent duplicate payment processing
   const processedRef = React.useRef(false);
 
-  const handlePaymentSuccess = useCallback(async (planId, userId, sessionId, explicitToken = null) => {
+  const handlePaymentSuccess = useCallback(async (planId, userId, sessionId, paymentId, explicitToken = null) => {
     console.log('=== handlePaymentSuccess called ===');
-    console.log('Plan:', planId, 'User:', userId, 'Session:', sessionId);
+    console.log('Plan:', planId, 'User:', userId, 'Session:', sessionId, 'Payment:', paymentId);
 
     // Use explicit token if provided (from fallback logic), otherwise use context token
     const useToken = explicitToken || token;
@@ -38,6 +38,11 @@ const PaymentSuccessPage = () => {
       // Include session_id if available for idempotency
       if (sessionId) {
         params.session_id = sessionId;
+      }
+
+      // Include payment_id if available (for one-time payments)
+      if (paymentId) {
+        params.payment_id = paymentId;
       }
 
       console.log('Processing payment with params:', params);
@@ -58,7 +63,7 @@ const PaymentSuccessPage = () => {
       console.log('Payment success response:', response.data);
 
       setCredits(response.data.credits_added);
-      setPlan(response.data.plan);
+      setPlan(response.data.data.plan);
 
       // Only force refresh if we actually have a session to refresh
       if (refreshUser && useToken) {
@@ -90,6 +95,7 @@ const PaymentSuccessPage = () => {
     const plan = searchParams.get('plan');
     const userId = searchParams.get('user_id');
     const sessionId = searchParams.get('session_id');
+    const paymentId = searchParams.get('payment_id');
 
     if (plan && userId) {
       processedRef.current = true;
@@ -115,13 +121,13 @@ const PaymentSuccessPage = () => {
           }
         }
 
-        // If still no token but we have a session ID, try verifying without auth (Backend supports this now)
-        if (!activeToken && sessionId) {
+        // If still no token but we have a session ID or payment ID, try verifying without auth (Backend supports this now)
+        if (!activeToken && (sessionId || paymentId)) {
           console.warn('No authentication token found after waiting. Falling back to Session verification.');
-          // Proceed without token - backend will verify using Dodo API and session_id
+          // Proceed without token - backend will verify using Dodo API and session_id/payment_id
         } else if (!activeToken) {
-          // No token and no session ID (shouldn't happen here as sessionId is checked above)
-          console.error('No authentication token found and no session ID. Cannot verify.');
+          // No token and no session ID or payment ID (shouldn't happen here)
+          console.error('No authentication token found and no session/payment ID. Cannot verify.');
           setLoading(false);
           alert('Please log in to complete your payment verification.');
           return;
@@ -130,7 +136,7 @@ const PaymentSuccessPage = () => {
         }
 
         // Token is available or falling back to session verification
-        handlePaymentSuccess(plan, userId, sessionId, activeToken);
+        handlePaymentSuccess(plan, userId, sessionId, paymentId, activeToken);
       };
 
       processPayment();
