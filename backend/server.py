@@ -703,7 +703,15 @@ async def upload_image(
 @api_router.get("/temp-images/{filename}")
 async def serve_temp_image(filename: str):
     """Serve temporarily uploaded images"""
-    filepath = ROOT_DIR / "temp_uploads" / filename
+    base_dir = (ROOT_DIR / "temp_uploads").resolve()
+    # Sanitize filename to prevent directory traversal
+    filepath = (base_dir / filename).resolve()
+
+    # Security: Ensure the resolved path is within the temp_uploads directory
+    if not filepath.is_relative_to(base_dir):
+        logger.warning(f"Path traversal attempt detected: {filename}")
+        raise HTTPException(status_code=403, detail="Access denied")
+
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     
