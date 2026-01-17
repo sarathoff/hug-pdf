@@ -109,17 +109,19 @@ const PricingPage = () => {
                     <Zap className="w-6 h-6" />
                   </div>
                   <Badge variant="outline" className="uppercase text-xs tracking-wider">
-                    Monthly billing
+                    {plan.billing}
                   </Badge>
                 </div>
                 <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
-                <CardDescription>Perfect for researchers, creators, and marketers</CardDescription>
+                <CardDescription>
+                  {plan.description || "Perfect for researchers, creators, and marketers"}
+                </CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-6">
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-bold text-gray-900">${plan.price}</span>
-                  <span className="text-gray-500 font-medium">/mo</span>
+                  <span className="text-gray-500 font-medium">/{plan.billing === 'monthly' ? 'mo' : 'one-time'}</span>
                 </div>
 
                 <Separator />
