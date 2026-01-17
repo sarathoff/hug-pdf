@@ -13,8 +13,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         persistSession: true,
         detectSessionInUrl: true,
         storage: window.localStorage,
-        flowType: 'pkce', // Use PKCE flow for better security and session persistence
-        debug: process.env.NODE_ENV === 'development', // Enable debug logging in development
+    },
+    realtime: {
+        params: {
+            eventsPerSecond: 2,
+        },
+    },
+    global: {
+        headers: {
+            'x-client-info': 'hugpdf-web',
+        },
     },
 });
 

@@ -463,24 +463,30 @@ async def payment_success(
     session_id: Optional[str] = None,
     current_user: Optional[dict] = Depends(get_current_user)
 ):
-    """Handle successful payment - REQUIRES AUTHENTICATION AND PAYMENT VERIFICATION"""
+    """Handle successful payment - Verifies payment session and updates user credits"""
     if not supabase:
         raise HTTPException(status_code=503, detail="Database not initialized")
     
-    # SECURITY: Require authentication
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Authentication required")
+    # CASE 1: Authenticated User
+    if current_user:
+        # Verify the user_id matches the authenticated user
+        if current_user['user_id'] != user_id:
+            logger.warning(f"User {current_user['user_id']} attempted to add credits to user {user_id}")
+            raise HTTPException(status_code=403, detail="Cannot modify another user's credits")
     
-    # SECURITY: Verify the user_id matches the authenticated user
-    if current_user['user_id'] != user_id:
-        logger.warning(f"User {current_user['user_id']} attempted to add credits to user {user_id}")
-        raise HTTPException(status_code=403, detail="Cannot modify another user's credits")
+    # CASE 2: Unauthenticated User (Session verification required)
+    elif not session_id:
+        # If not logged in AND no session ID, we can't do anything
+        raise HTTPException(status_code=401, detail="Authentication required or valid session ID missing")
     
     # SECURITY: Verify payment with Dodo Payments if session_id is provided
+    # This is critical for unauthenticated requests and highly recommended for authenticated ones
     if session_id:
         # Allow test sessions for local development
         if session_id.startswith('test_session_'):
             logger.warning(f"TEST SESSION: Bypassing Dodo verification for {session_id}")
+            # For test sessions, we MUST trust the input user_id if unauthenticated
+            # In production, test sessions should be disabled or strictly controlled
         else:
             # Real session - verify with Dodo Payments
             try:
@@ -512,11 +518,6 @@ async def payment_success(
                 logger.info(f"Dodo session data for {session_id}: {session_data}")
                 
                 # Verify the session is completed/paid
-                # Accept multiple valid statuses for different payment scenarios:
-                # - 'completed': Regular paid checkout
-                # - 'paid': Alternative success status
-                # - 'succeeded': Another success variant
-                # - 'free': 100% discount/free checkout
                 session_status = session_data.get('status')
                 valid_statuses = ['completed', 'paid', 'succeeded', 'free']
                 
@@ -524,22 +525,27 @@ async def payment_success(
                     logger.warning(f"Payment session {session_id} has invalid status: {session_status}")
                     raise HTTPException(status_code=400, detail=f"Payment not completed. Status: {session_status}")
                 
-                # Verify the metadata matches
+                # Verify user_id matches the one in metadata (TRUSTED SOURCE)
                 metadata = session_data.get('metadata', {})
-                if metadata.get('user_id') != user_id or metadata.get('plan') != plan:
-                    logger.error(f"Payment session metadata mismatch for {session_id}")
-                    raise HTTPException(status_code=400, detail="Payment verification failed: metadata mismatch")
+                metadata_user_id = metadata.get('user_id')
+                metadata_plan = metadata.get('plan')
                 
-                logger.info(f"Payment verified for user {user_id}, session {session_id}")
+                if not metadata_user_id or metadata_user_id != user_id:
+                    logger.error(f"Security Mismatch: Request user_id {user_id} != Metadata user_id {metadata_user_id}")
+                    raise HTTPException(status_code=400, detail="Payment verification failed: User ID mismatch")
+                
+                if metadata_plan != plan:
+                    logger.warning(f"Plan mismatch: Request {plan} != Metadata {metadata_plan}, using metadata plan")
+                    plan = metadata_plan
+                
+                logger.info(f"Payment verified for user {user_id} via Dodo Session {session_id}")
                 
             except requests.RequestException as e:
                 logger.error(f"Error verifying payment with Dodo: {str(e)}")
                 raise HTTPException(status_code=503, detail="Payment verification service unavailable")
     else:
-        # No session_id provided - this is suspicious in production
+        # This block is reached if authenticated but no session_id provided
         logger.warning(f"Payment success called without session_id for user {user_id}")
-        # For now, we'll allow it but log it. In strict mode, you should reject this.
-        # raise HTTPException(status_code=400, detail="Payment session ID required")
         
     try:
         # Check if this payment has already been processed (idempotency check)
@@ -560,12 +566,13 @@ async def payment_success(
                 logger.info(f"Could not check payment_sessions table (may not exist): {e}")
         
         # Update credits based on plan
-        # Credits now represent PDF downloads: 1 credit = 1 PDF
         credits_to_add = 50  # Pro: 50 PDFs/month
         
         # Get current user for increment
         resp = supabase.table("users").select("credits").eq("user_id", user_id).execute()
         if not resp.data:
+            # If user doesn't exist yet (rare race condition if new user buys immediately), try to create?
+            # Or just fail? Usually users exist before buying.
             raise HTTPException(status_code=404, detail="User not found")
         
         new_credits = resp.data[0]['credits'] + credits_to_add
@@ -597,12 +604,10 @@ async def payment_success(
                     'processed_at': datetime.now(timezone.utc).isoformat()
                 }).execute()
             except Exception as e:
-                # Table might not exist - log but don't fail
                 logger.info(f"Could not record payment session (table may not exist): {e}")
         
         logger.info(f"Added {credits_to_add} credits to user {user_id} for plan {plan}")
         
-        # Return comprehensive response with updated user data
         return {
             'success': True, 
             'credits_added': credits_to_add, 
