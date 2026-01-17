@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Home } from 'lucide-react';
+import { CheckCircle, Home, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
@@ -20,10 +20,13 @@ const PaymentSuccessPage = () => {
   // Prevent duplicate payment processing
   const processedRef = React.useRef(false);
 
-  const handlePaymentSuccess = useCallback(async (planId, userId, sessionId) => {
+  const handlePaymentSuccess = useCallback(async (planId, userId, sessionId, explicitToken = null) => {
     console.log('=== handlePaymentSuccess called ===');
     console.log('Plan:', planId, 'User:', userId, 'Session:', sessionId);
-    console.log('Token available:', !!token);
+
+    // Use explicit token if provided (from fallback logic), otherwise use context token
+    const useToken = explicitToken || token;
+    console.log('Token available for request:', !!useToken);
 
     try {
       const params = {
@@ -38,9 +41,17 @@ const PaymentSuccessPage = () => {
 
       console.log('Processing payment with params:', params);
 
+      // Make request with or without token
+      const headers = {};
+      if (useToken) {
+        headers['Authorization'] = `Bearer ${useToken}`;
+      } else {
+        console.warn('Sending request WITHOUT Authorization header (relying on Session ID verification)');
+      }
+
       const response = await axios.post(`${API}/payment/success`, null, {
         params: params,
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: headers
       });
 
       console.log('Payment success response:', response.data);
@@ -48,10 +59,13 @@ const PaymentSuccessPage = () => {
       setCredits(response.data.credits_added);
       setPlan(response.data.plan);
 
-      if (refreshUser) {
+      // Only force refresh if we actually have a session to refresh
+      if (refreshUser && useToken) {
         console.log('Refreshing user data...');
         await refreshUser();
         console.log('User data refreshed successfully');
+      } else {
+        console.log('Skipping user refresh (no active session)');
       }
     } catch (error) {
       console.error('=== Error processing payment ===');
@@ -82,11 +96,12 @@ const PaymentSuccessPage = () => {
 
       // Wait for token to be available (user might be redirected from payment before auth is ready)
       const processPayment = async () => {
+        let activeToken = token;
+
         // If no token yet, wait a bit for auth to initialize
-        if (!token) {
+        if (!activeToken) {
           console.log('Token not available yet, waiting for authentication...');
-          // Wait up to 2 seconds for token to be available (reduced from 3)
-          let tokenFound = false;
+          // Wait up to 2 seconds for token to be available
           for (let i = 0; i < 4; i++) {
             console.log(`Checking for token... attempt ${i + 1}/4`);
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -94,25 +109,28 @@ const PaymentSuccessPage = () => {
             console.log('Session check result:', session ? 'Session exists' : 'No session');
             if (session?.access_token) {
               console.log('Token now available, processing payment...');
-              tokenFound = true;
-              handlePaymentSuccess(plan, userId, sessionId);
-              return;
+              activeToken = session.access_token;
+              break;
             }
           }
-
-          // If no token after 2 seconds, user might not be logged in
-          if (!tokenFound) {
-            console.error('No authentication token found after waiting. User may need to log in.');
-            setLoading(false);
-            alert('Please log in to complete your payment verification. Your payment was successful, but you need to be logged in to activate your plan.');
-            return;
-          }
-        } else {
-          console.log('Token already available, processing payment immediately...');
         }
 
-        // Token is available, process payment
-        handlePaymentSuccess(plan, userId, sessionId);
+        // If still no token but we have a session ID, try verifying without auth (Backend supports this now)
+        if (!activeToken && sessionId) {
+          console.warn('No authentication token found after waiting. Falling back to Session verification.');
+          // Proceed without token - backend will verify using Dodo API and session_id
+        } else if (!activeToken) {
+          // No token and no session ID (shouldn't happen here as sessionId is checked above)
+          console.error('No authentication token found and no session ID. Cannot verify.');
+          setLoading(false);
+          alert('Please log in to complete your payment verification.');
+          return;
+        } else {
+          console.log('Token available, processing payment normally...');
+        }
+
+        // Token is available or falling back to session verification
+        handlePaymentSuccess(plan, userId, sessionId, activeToken);
       };
 
       processPayment();
@@ -121,10 +139,11 @@ const PaymentSuccessPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Processing your payment...</p>
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-xl border border-gray-100 max-w-sm w-full">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Verifying Payment</h2>
+          <p className="text-gray-600">Please wait while we confirm your transaction. This may take a moment...</p>
         </div>
       </div>
     );

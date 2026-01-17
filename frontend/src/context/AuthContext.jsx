@@ -40,15 +40,22 @@ export const AuthProvider = ({ children }) => {
   const syncUserToBackend = useCallback(async (supabaseUser) => {
     try {
       // Check if user exists in our users table
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: selectError } = await supabase
         .from('users')
         .select('*')
         .eq('user_id', supabaseUser.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle to suppress error on 0 rows
+
+      if (selectError) {
+        console.error('Error fetching user:', selectError);
+        // Only throw if it's a real error, not just "not found" (though maybeSingle handles not found)
+        throw selectError;
+      }
 
       if (!existingUser) {
+        console.log('User not found in DB, creating new user record...');
         // Create new user with 3 free credits
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('users')
           .insert({
             user_id: supabaseUser.id,
@@ -59,8 +66,12 @@ export const AuthProvider = ({ children }) => {
             updated_at: new Date().toISOString(),
           });
 
-        if (error) throw error;
+        if (insertError) {
+          console.error('Error creating user:', insertError);
+          throw insertError;
+        }
 
+        console.log('New user created successfully');
         return {
           user_id: supabaseUser.id,
           email: supabaseUser.email,
@@ -70,6 +81,7 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
+      console.log('User found in DB:', existingUser.email);
       return existingUser;
     } catch (error) {
       console.error('Error syncing user to backend:', error);
@@ -121,47 +133,10 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, [syncUserToBackend]);
 
-  // Real-time subscription for user data (updates credits instantly)
-  useEffect(() => {
-    if (!user?.user_id) return;
 
-    let channel;
-
-    try {
-      channel = supabase
-        .channel('public:users')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'users',
-            filter: `user_id=eq.${user.user_id}`,
-          },
-          (payload) => {
-            console.log('Realtime user update:', payload);
-            setUser((prev) => ({ ...prev, ...payload.new }));
-          }
-        )
-        .subscribe((status, err) => {
-          if (err) {
-            console.error('Realtime subscription error:', err);
-          } else {
-            console.log('Realtime subscription status:', status);
-          }
-        });
-    } catch (error) {
-      console.error('Error setting up realtime subscription:', error);
-    }
-
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel).catch(err => {
-          console.warn('Error removing channel:', err);
-        });
-      }
-    };
-  }, [user?.user_id]);
+  // NOTE: Realtime subscription removed to prevent AbortErrors
+  // User data will be refreshed via refreshUser() calls after important operations
+  // (e.g., after payment success, after PDF generation, etc.)
 
   // Automatic token refresh
   useEffect(() => {
