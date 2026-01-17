@@ -13,5 +13,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         persistSession: true,
         detectSessionInUrl: true,
         storage: window.localStorage,
+        flowType: 'pkce', // Use PKCE flow for better security and session persistence
+        debug: process.env.NODE_ENV === 'development', // Enable debug logging in development
     },
 });
+
+// Debug: Log when session changes
+if (process.env.NODE_ENV === 'development') {
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log('🔐 Auth state changed:', event, session ? 'Session exists' : 'No session');
+        if (event === 'SIGNED_OUT') {
+            console.warn('⚠️ User was signed out!');
+        }
+    });
+}

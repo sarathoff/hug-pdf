@@ -102,12 +102,17 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 AuthContext: Auth state change event:', event);
+      console.log('Session data:', session ? 'Session exists' : 'No session');
+
       setSession(session);
       if (session?.user) {
+        console.log('User authenticated:', session.user.email);
         const userData = await syncUserToBackend(session.user);
         setUser(userData);
       } else {
+        console.warn('No session - user will be set to null');
         setUser(null);
       }
       setLoading(false);
@@ -120,25 +125,41 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!user?.user_id) return;
 
-    const channel = supabase
-      .channel('public:users')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'users',
-          filter: `user_id=eq.${user.user_id}`,
-        },
-        (payload) => {
-          console.log('Realtime user update:', payload);
-          setUser((prev) => ({ ...prev, ...payload.new }));
-        }
-      )
-      .subscribe();
+    let channel;
+
+    try {
+      channel = supabase
+        .channel('public:users')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'users',
+            filter: `user_id=eq.${user.user_id}`,
+          },
+          (payload) => {
+            console.log('Realtime user update:', payload);
+            setUser((prev) => ({ ...prev, ...payload.new }));
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) {
+            console.error('Realtime subscription error:', err);
+          } else {
+            console.log('Realtime subscription status:', status);
+          }
+        });
+    } catch (error) {
+      console.error('Error setting up realtime subscription:', error);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel).catch(err => {
+          console.warn('Error removing channel:', err);
+        });
+      }
     };
   }, [user?.user_id]);
 
