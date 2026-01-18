@@ -81,6 +81,23 @@ const HomePage = () => {
             Just describe what you need. Our advanced AI will generate, format, and deliver
             stunning professional PDFs tailored to your needs.
           </p>
+
+          {/* Product Hunt Badge */}
+          <div className="flex justify-center mt-6">
+            <a
+              href="https://www.producthunt.com/products/hugpdf?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hugpdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-transform hover:scale-105 duration-200"
+            >
+              <img
+                alt="HugPDF - Create Beautiful PDFs Using AI - Chat and Create PDFs | Product Hunt"
+                width="250"
+                height="54"
+                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1064053&theme=light&t=1768729447472"
+              />
+            </a>
+          </div>
         </div>
 
         {/* Main Input */}
