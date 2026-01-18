@@ -604,8 +604,22 @@ async def payment_success(
                 logger.error(f"Error verifying payment with Dodo: {str(e)}")
                 raise HTTPException(status_code=503, detail="Payment verification service unavailable")
     else:
-        # This block is reached if authenticated but no session_id/payment_id provided
-        logger.warning(f"Payment success called without session_id/payment_id for user {user_id}")
+        # CRITICAL SECURITY: Reject payments without verification ID
+        # This prevents users from bypassing payment verification entirely
+        if current_user:
+            # Even authenticated users must provide session_id or payment_id for verification
+            logger.error(f"Security Alert: Payment success called without session_id/payment_id for authenticated user {user_id}")
+            raise HTTPException(
+                status_code=400, 
+                detail="Payment verification required: session_id or payment_id missing"
+            )
+        else:
+            # Unauthenticated users absolutely require verification
+            logger.error(f"Security Alert: Unauthenticated payment attempt without verification ID")
+            raise HTTPException(
+                status_code=401, 
+                detail="Authentication and payment verification required"
+            )
         
     try:
         # Check if this payment has already been processed (idempotency check)
