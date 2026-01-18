@@ -1,0 +1,4 @@
+## 2026-01-18 - Path Traversal in File Serving
+**Vulnerability:** The `serve_temp_image` endpoint in `backend/server.py` constructed file paths by simply joining the `ROOT_DIR`, `temp_uploads`, and the user-provided `filename` using `pathlib`'s `/` operator. This allowed a malicious user to supply a filename containing `..` (e.g., `../requirements.txt`) to access files outside the intended directory, as `pathlib` resolves `..` when the path is used.
+**Learning:** `pathlib`'s path joining does not automatically sandbox paths. Using `/` or `joinpath` with `..` components results in a valid path that may point outside the base directory. Always verify that the resolved path is strictly within the intended directory using `.resolve()` and `.is_relative_to()`.
+**Prevention:** When serving files based on user input, always resolve the final path and check `path.is_relative_to(base_dir)`. Explicitly reject paths that traverse upwards.
