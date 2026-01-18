@@ -591,7 +591,8 @@ async def payment_success(
             credits_to_add = 50  # Pro: 50 PDFs/month
         
         # Get current user details to determine plan update strategy
-        resp = supabase.table("users").select("credits, plan").eq("user_id", user_id).execute()
+        # Use admin client to bypass RLS
+        resp = supabase_admin.table("users").select("credits, plan").eq("user_id", user_id).execute()
         if not resp.data:
             raise HTTPException(status_code=404, detail="User not found")
         
