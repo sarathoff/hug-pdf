@@ -855,7 +855,7 @@ async def create_checkout_session(request: CheckoutRequest):
 # Add root endpoint to main app
 @app.get("/")
 async def root():
-    return {"message": "HugPDF Backend API", "status": "running", "version": "1.0.0"}
+    return {"message": "HugPDF Backend API", "status": "running", "version": "1.0.1"}
 
 # Include the router in the main app
 app.include_router(api_router)
