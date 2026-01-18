@@ -718,21 +718,12 @@ async def get_pricing():
     return {
         'plans': [
             {
-                'id': 'pro',
-                'name': 'Pro Plan',
-                'price': 5,
-                'billing': 'monthly',
-                'credits': 50,
-                'popular': True,
-                'features': ['50 PDF downloads every month', 'AI-powered PDF generation', 'Research papers & resumes', 'E-book creation tools', 'Priority support', 'Commercial license']
-            },
-            {
                 'id': 'credit_topup',
                 'name': 'Credit Top-Up',
                 'price': 2,
                 'billing': 'one-time',
                 'credits': 20,
-                'popular': False,
+                'popular': True,
                 'features': ['20 Credits added instantly', 'Unlocks Research & E-book modes', 'Removes Watermarks', 'Never expires', 'One-time payment']
             }
         ]
