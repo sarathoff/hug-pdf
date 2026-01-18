@@ -14,6 +14,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SuccessPage from "./pages/SuccessPage";
 import Layout from "./components/Layout";
+import CookieConsent from "./components/CookieConsent";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -52,6 +53,7 @@ function App() {
             <Route path="/auth" element={<AuthPage />} />
           </Routes>
         </BrowserRouter>
+        <CookieConsent />
       </div>
     </AuthProvider>
   );

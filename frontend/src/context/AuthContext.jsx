@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import axios from 'axios';
 
@@ -19,6 +19,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
+  const authStateListenerRef = useRef(null);
+  const tokenRefreshTimeoutRef = useRef(null);
 
   const fetchUserData = useCallback(async (userId) => {
     try {
@@ -38,17 +41,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const syncUserToBackend = useCallback(async (supabaseUser) => {
+    if (!supabaseUser) return null;
+
     try {
       // Check if user exists in our users table
       const { data: existingUser, error: selectError } = await supabase
         .from('users')
         .select('*')
         .eq('user_id', supabaseUser.id)
-        .maybeSingle(); // Use maybeSingle to suppress error on 0 rows
+        .maybeSingle();
 
       if (selectError) {
         console.error('Error fetching user:', selectError);
-        // Only throw if it's a real error, not just "not found" (though maybeSingle handles not found)
         throw selectError;
       }
 
@@ -85,111 +89,215 @@ export const AuthProvider = ({ children }) => {
       return existingUser;
     } catch (error) {
       console.error('Error syncing user to backend:', error);
-      // Fallback: If backend sync fails (e.g. network), return basic user info from session
-      // This prevents "auto-logout" when DB is unreachable but session is valid
+      // Fallback: Return basic user info to prevent logout on temporary DB issues
       return {
         user_id: supabaseUser.id,
         email: supabaseUser.email,
-        credits: 0, // Assume 0 until sync works, better than logout
+        credits: 0,
         plan: 'free',
         error: true
       };
     }
   }, []);
 
+  // Initialize session on mount
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        syncUserToBackend(session.user).then((userData) => {
-          setUser(userData);
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
-      }
-    });
+    let isMounted = true;
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔐 AuthContext: Auth state change event:', event);
-      console.log('Session data:', session ? 'Session exists' : 'No session');
+    const initializeAuth = async () => {
+      try {
+        console.log('🔐 Initializing authentication...');
 
-      setSession(session);
-      if (session?.user) {
-        console.log('User authenticated:', session.user.email);
-        const userData = await syncUserToBackend(session.user);
-        setUser(userData);
-      } else {
-        console.warn('No session - user will be set to null');
-        setUser(null);
-      }
-      setLoading(false);
-    });
+        // Get session from localStorage (Supabase handles this automatically)
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-    return () => subscription.unsubscribe();
-  }, [syncUserToBackend]);
+        if (error) {
+          console.error('Error getting session:', error);
+          // Don't throw - just continue without session
+        }
 
-
-  // NOTE: Realtime subscription removed to prevent AbortErrors
-  // User data will be refreshed via refreshUser() calls after important operations
-  // (e.g., after payment success, after PDF generation, etc.)
-
-  // Automatic token refresh
-  useEffect(() => {
-    if (!session) return;
-
-    const setupTokenRefresh = () => {
-      const expiresAt = session.expires_at; // Unix timestamp in seconds
-      if (!expiresAt) return;
-
-      const now = Math.floor(Date.now() / 1000); // Current time in seconds
-      const expiresIn = expiresAt - now; // Time until expiration in seconds
-
-      // Refresh 5 minutes (300 seconds) before expiration
-      const refreshIn = Math.max(0, (expiresIn - 300) * 1000); // Convert to milliseconds
-
-      console.log(`Token expires in ${expiresIn} seconds. Refreshing in ${refreshIn / 1000} seconds.`);
-
-      const timeoutId = setTimeout(async () => {
-        console.log('Refreshing token...');
-        try {
-          const { data, error } = await supabase.auth.refreshSession();
-          if (error) {
-            console.error('Token refresh failed:', error);
-
-            // Only log out on critical auth errors, not network issues
-            // Check if it's an auth error (invalid_grant, etc.) vs network error
-            if (error.message?.includes('invalid') || error.message?.includes('expired')) {
-              console.warn('Critical auth error, logging out user');
-              await supabase.auth.signOut();
-              setSession(null);
-              setUser(null);
-            } else {
-              console.warn('Token refresh failed but keeping user logged in. Will retry on next attempt.');
-              // Don't log out - user can continue using the app
-              // The next API call will trigger a new refresh attempt
+        if (isMounted) {
+          if (session?.user) {
+            console.log('✅ Session found, syncing user data...');
+            setSession(session);
+            const userData = await syncUserToBackend(session.user);
+            if (isMounted) {
+              setUser(userData);
             }
           } else {
-            console.log('Token refreshed successfully');
-            setSession(data.session);
+            console.log('ℹ️ No existing session found');
           }
-        } catch (err) {
-          console.error('Token refresh error:', err);
-          // Don't automatically log out on network errors
-          console.warn('Token refresh error, but keeping user logged in');
+          setInitialized(true);
+          setLoading(false);
         }
-      }, refreshIn);
-
-      return () => clearTimeout(timeoutId);
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (isMounted) {
+          setInitialized(true);
+          setLoading(false);
+        }
+      }
     };
 
-    const cleanup = setupTokenRefresh();
-    return cleanup;
-  }, [session]);
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [syncUserToBackend]);
+
+  // Listen for auth state changes (login, logout, token refresh)
+  useEffect(() => {
+    if (!initialized) return;
+
+    console.log('🔐 Setting up auth state listener...');
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('🔐 Auth state change event:', event);
+
+      // Handle different auth events
+      switch (event) {
+        case 'SIGNED_IN':
+          console.log('✅ User signed in:', newSession?.user?.email);
+          setSession(newSession);
+          if (newSession?.user) {
+            const userData = await syncUserToBackend(newSession.user);
+            setUser(userData);
+          }
+          break;
+
+        case 'SIGNED_OUT':
+          console.log('👋 User signed out');
+          setSession(null);
+          setUser(null);
+          break;
+
+        case 'TOKEN_REFRESHED':
+          console.log('🔄 Token refreshed successfully');
+          setSession(newSession);
+          break;
+
+        case 'USER_UPDATED':
+          console.log('👤 User updated');
+          setSession(newSession);
+          if (newSession?.user) {
+            const userData = await syncUserToBackend(newSession.user);
+            setUser(userData);
+          }
+          break;
+
+        default:
+          // For other events, just update session if it exists
+          if (newSession) {
+            setSession(newSession);
+          }
+      }
+    });
+
+    authStateListenerRef.current = subscription;
+
+    return () => {
+      console.log('🔐 Cleaning up auth state listener');
+      subscription.unsubscribe();
+    };
+  }, [initialized, syncUserToBackend]);
+
+  // Automatic token refresh with improved error handling
+  useEffect(() => {
+    if (!session?.expires_at) return;
+
+    // Clear any existing timeout
+    if (tokenRefreshTimeoutRef.current) {
+      clearTimeout(tokenRefreshTimeoutRef.current);
+    }
+
+    const expiresAt = session.expires_at; // Unix timestamp in seconds
+    const now = Math.floor(Date.now() / 1000);
+    const expiresIn = expiresAt - now;
+
+    // Refresh 5 minutes before expiration
+    const refreshIn = Math.max(0, (expiresIn - 300) * 1000);
+
+    console.log(`⏰ Token expires in ${expiresIn} seconds. Scheduling refresh in ${refreshIn / 1000} seconds.`);
+
+    tokenRefreshTimeoutRef.current = setTimeout(async () => {
+      console.log('🔄 Attempting token refresh...');
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+
+        if (error) {
+          console.error('❌ Token refresh failed:', error);
+
+          // Only logout on critical authentication errors
+          const criticalErrors = ['invalid_grant', 'invalid_token', 'refresh_token_not_found'];
+          const isCriticalError = criticalErrors.some(err =>
+            error.message?.toLowerCase().includes(err) ||
+            error.status === 401
+          );
+
+          if (isCriticalError) {
+            console.warn('⚠️ Critical auth error detected, logging out user');
+            await supabase.auth.signOut();
+          } else {
+            console.warn('⚠️ Token refresh failed but keeping user logged in (likely network issue)');
+            // Session will be retried on next scheduled refresh or API call
+          }
+        } else if (data?.session) {
+          console.log('✅ Token refreshed successfully');
+          setSession(data.session);
+        }
+      } catch (err) {
+        console.error('❌ Token refresh error:', err);
+        // Don't logout on network errors - keep user logged in
+        console.warn('⚠️ Keeping user logged in despite refresh error');
+      }
+    }, refreshIn);
+
+    return () => {
+      if (tokenRefreshTimeoutRef.current) {
+        clearTimeout(tokenRefreshTimeoutRef.current);
+      }
+    };
+  }, [session?.expires_at]);
+
+  // Validate session on page visibility change (user returns to tab)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && session) {
+        console.log('👁️ Page visible, validating session...');
+        try {
+          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+
+          if (error) {
+            console.error('Error validating session:', error);
+            return;
+          }
+
+          if (!currentSession && session) {
+            // Session was lost while tab was hidden
+            console.warn('⚠️ Session lost while tab was hidden');
+            setSession(null);
+            setUser(null);
+          } else if (currentSession && !session) {
+            // Session was restored
+            console.log('✅ Session restored');
+            setSession(currentSession);
+            if (currentSession.user) {
+              const userData = await syncUserToBackend(currentSession.user);
+              setUser(userData);
+            }
+          }
+        } catch (err) {
+          console.error('Error in visibility change handler:', err);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [session, syncUserToBackend]);
 
   const register = async (email, password) => {
     const { data, error } = await supabase.auth.signUp({
@@ -231,33 +339,51 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setUser(null);
+    console.log('👋 Logging out user...');
+    try {
+      await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+      console.log('✅ Logout successful');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Force local logout even if API call fails
+      setSession(null);
+      setUser(null);
+    }
   }, []);
 
   const refreshUser = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession?.access_token) {
+        console.warn('No session available for user refresh');
+        return;
+      }
 
-      // Call backend API to get fresh user data (bypasses RLS)
+      // Call backend API to get fresh user data
       const response = await axios.get(`${API}/auth/me`, {
-        headers: { Authorization: `Bearer ${session.access_token}` }
+        headers: { Authorization: `Bearer ${currentSession.access_token}` }
       });
 
       if (response.data) {
-        console.log('User data refreshed:', response.data);
+        console.log('✅ User data refreshed:', response.data);
         setUser(response.data);
       }
     } catch (error) {
       console.error('Failed to refresh user:', error);
+      // Don't logout on refresh failure - just log the error
     }
   };
 
   const getToken = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      return currentSession?.access_token || null;
+    } catch (error) {
+      console.error('Error getting token:', error);
+      return null;
+    }
   };
 
   return (
