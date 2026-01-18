@@ -63,7 +63,7 @@ const PaymentSuccessPage = () => {
       console.log('Payment success response:', response.data);
 
       setCredits(response.data.credits_added);
-      setPlan(response.data.data.plan);
+      setPlan(response.data.plan);
 
       // Only force refresh if we actually have a session to refresh
       if (refreshUser && useToken) {
@@ -103,45 +103,86 @@ const PaymentSuccessPage = () => {
       // Wait for token to be available (user might be redirected from payment before auth is ready)
       const processPayment = async () => {
         let activeToken = token;
+        let attempts = 0;
+        const maxAttempts = 8; // Increased from 4 to 8 (4 seconds total)
 
-        // If no token yet, wait a bit for auth to initialize
+        // If no token yet, wait for auth to initialize
         if (!activeToken) {
-          console.log('Token not available yet, waiting for authentication...');
-          // Wait up to 2 seconds for token to be available
-          for (let i = 0; i < 4; i++) {
-            console.log(`Checking for token... attempt ${i + 1}/4`);
+          console.log('🔄 Token not available yet, waiting for authentication...');
+
+          // Wait up to 4 seconds for token to be available
+          for (let i = 0; i < maxAttempts; i++) {
+            attempts++;
+            console.log(`⏳ Checking for token... attempt ${i + 1}/${maxAttempts}`);
             await new Promise(resolve => setTimeout(resolve, 500));
-            const { data: { session } } = await supabase.auth.getSession();
-            console.log('Session check result:', session ? 'Session exists' : 'No session');
-            if (session?.access_token) {
-              console.log('Token now available, processing payment...');
-              activeToken = session.access_token;
-              break;
+
+            try {
+              const { data: { session }, error } = await supabase.auth.getSession();
+
+              if (error) {
+                console.error('❌ Error getting session:', error);
+                continue;
+              }
+
+              if (session?.access_token) {
+                console.log('✅ Token now available, processing payment...');
+                activeToken = session.access_token;
+                break;
+              } else {
+                console.log(`ℹ️ No session yet (attempt ${i + 1}/${maxAttempts})`);
+              }
+            } catch (err) {
+              console.error('❌ Error checking session:', err);
             }
           }
         }
 
-        // If still no token but we have a session ID or payment ID, try verifying without auth (Backend supports this now)
-        if (!activeToken && (sessionId || paymentId)) {
-          console.warn('No authentication token found after waiting. Falling back to Session verification.');
-          // Proceed without token - backend will verify using Dodo API and session_id/payment_id
-        } else if (!activeToken) {
-          // No token and no session ID or payment ID (shouldn't happen here)
-          console.error('No authentication token found and no session/payment ID. Cannot verify.');
-          setLoading(false);
-          alert('Please log in to complete your payment verification.');
-          return;
+        // After waiting, decide how to proceed
+        if (!activeToken) {
+          console.warn('⚠️ No authentication token found after waiting.');
+
+          // If we have session_id or payment_id, we can try to verify without auth
+          if (sessionId || paymentId) {
+            console.log('ℹ️ Attempting verification using session/payment ID...');
+            // Proceed without token - backend will verify using Dodo API
+          } else {
+            // No token and no session/payment ID - cannot verify
+            console.error('❌ Cannot verify payment: No token and no session/payment ID');
+            setError('Authentication required. Please log in and try again.');
+            setLoading(false);
+            return;
+          }
         } else {
-          console.log('Token available, processing payment normally...');
+          console.log('✅ Token available, processing payment normally...');
         }
 
-        // Token is available or falling back to session verification
-        handlePaymentSuccess(plan, userId, sessionId, paymentId, activeToken);
+        // Process the payment
+        await handlePaymentSuccess(plan, userId, sessionId, paymentId, activeToken);
       };
 
-      processPayment();
+      // Add a safety timeout - if processing takes too long, show error
+      const timeoutId = setTimeout(() => {
+        if (loading) {
+          console.error('⏱️ Payment verification timeout - taking too long');
+          setError('Payment verification is taking longer than expected. Please refresh the page or contact support.');
+          setLoading(false);
+        }
+      }, 15000); // 15 second timeout
+
+      processPayment().finally(() => {
+        clearTimeout(timeoutId);
+      });
+
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    } else {
+      // Missing required parameters
+      console.error('❌ Missing required payment parameters (plan or user_id)');
+      setError('Invalid payment link. Missing required information.');
+      setLoading(false);
     }
-  }, [searchParams, handlePaymentSuccess, token]);
+  }, [searchParams, handlePaymentSuccess, token, loading]);
 
 
 
@@ -153,7 +194,8 @@ const PaymentSuccessPage = () => {
         <div className="text-center bg-white p-8 rounded-2xl shadow-xl border border-gray-100 max-w-sm w-full">
           <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Verifying Payment</h2>
-          <p className="text-gray-600">Please wait while we confirm your transaction. This may take a moment...</p>
+          <p className="text-gray-600 mb-3">Please wait while we confirm your transaction. This may take a moment...</p>
+          <p className="text-sm text-gray-500">🔐 Restoring your session...</p>
         </div>
       </div>
     );
