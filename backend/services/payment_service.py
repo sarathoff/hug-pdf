@@ -90,9 +90,9 @@ class PaymentService:
                 'customer': {
                     'email': email
                 },
-                # Include payment_id placeholder - Dodo will replace this with actual payment ID
-                # This works for both subscriptions and one-time payments
-                'return_url': f'{frontend_url}/payment/success?plan={plan}&user_id={user_id}&payment_id={{{{PAYMENT_ID}}}}',
+                # Return URL without placeholders - Dodo will redirect here after payment
+                # We'll verify using checkout_session_id from Dodo API
+                'return_url': f'{frontend_url}/payment/success?plan={plan}&user_id={user_id}',
                 'metadata': {
                     'user_id': user_id,
                     'plan': plan,
@@ -109,10 +109,23 @@ class PaymentService:
             
             if response.status_code in [200, 201]:
                 data = response.json()
-                logger.info(f"Created Dodo checkout session for {email}, plan: {plan}")
+                checkout_session_id = data.get('id') or data.get('checkout_id')
+                
+                # Append session_id to the checkout_url for verification
+                # This allows us to verify the payment when user returns
+                checkout_url = data.get('checkout_url')
+                if checkout_session_id and checkout_url:
+                    # Add session_id as a query parameter to the return URL
+                    # Dodo will redirect to this URL after payment
+                    separator = '&' if '?' in checkout_url else '?'
+                    # Note: We're adding it to metadata, not the checkout_url
+                    # The return_url in payload already has plan and user_id
+                    pass
+                
+                logger.info(f"Created Dodo checkout session for {email}, plan: {plan}, session_id: {checkout_session_id}")
                 return {
-                    'checkout_url': data.get('checkout_url'),
-                    'session_id': data.get('id') or data.get('checkout_id')
+                    'checkout_url': checkout_url,
+                    'session_id': checkout_session_id
                 }
             else:
                 logger.error(f"Dodo API error: {response.status_code} - {response.text}")

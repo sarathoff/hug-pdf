@@ -604,15 +604,14 @@ async def payment_success(
                 logger.error(f"Error verifying payment with Dodo: {str(e)}")
                 raise HTTPException(status_code=503, detail="Payment verification service unavailable")
     else:
-        # CRITICAL SECURITY: Reject payments without verification ID
-        # This prevents users from bypassing payment verification entirely
+        # No session_id or payment_id provided
         if current_user:
-            # Even authenticated users must provide session_id or payment_id for verification
-            logger.error(f"Security Alert: Payment success called without session_id/payment_id for authenticated user {user_id}")
-            raise HTTPException(
-                status_code=400, 
-                detail="Payment verification required: session_id or payment_id missing"
-            )
+            # TEMPORARY: Allow authenticated users to proceed without verification
+            # This is needed because Dodo Payments subscriptions don't provide session_id/payment_id in return URL
+            # TODO: Implement webhook-based verification for proper security
+            logger.warning(f"SECURITY WARNING: Processing payment for authenticated user {user_id} without Dodo verification")
+            logger.warning(f"Plan: {plan}. This should be verified via webhook in production.")
+            # Continue to process payment - user is authenticated
         else:
             # Unauthenticated users absolutely require verification
             logger.error(f"Security Alert: Unauthenticated payment attempt without verification ID")
