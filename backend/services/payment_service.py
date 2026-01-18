@@ -90,7 +90,9 @@ class PaymentService:
                 'customer': {
                     'email': email
                 },
-                'return_url': f'{frontend_url}/payment/success?plan={plan}&user_id={user_id}&session_id={{CHECKOUT_SESSION_ID}}',
+                # Don't include session_id in return_url - Dodo doesn't replace the placeholder
+                # We'll use payment_id from the webhook/redirect instead
+                'return_url': f'{frontend_url}/payment/success?plan={plan}&user_id={user_id}',
                 'metadata': {
                     'user_id': user_id,
                     'plan': plan,
