@@ -538,11 +538,52 @@ async def payment_success(
                 
                 # Verify the session is completed/paid
                 session_status = session_data.get('status')
-                valid_statuses = ['completed', 'paid', 'succeeded', 'free']
+                # Removed 'free' from valid statuses - users must actually pay
+                valid_statuses = ['completed', 'paid', 'succeeded']
                 
                 if session_status not in valid_statuses:
                     logger.warning(f"Payment {verification_id} has invalid status: {session_status}")
                     raise HTTPException(status_code=400, detail=f"Payment not completed. Status: {session_status}")
+                
+                # CRITICAL SECURITY: Verify actual payment was made (amount > 0)
+                # This prevents users from getting Pro access with free/discounted checkouts
+                total_amount = session_data.get('total_amount', 0)
+                settlement_amount = session_data.get('settlement_amount', 0)
+                
+                # For credit_topup, expect $2 (200 cents), for pro expect $5 (500 cents)
+                expected_amounts = {
+                    'credit_topup': 200,  # $2 in cents
+                    'pro': 500  # $5 in cents
+                }
+                
+                # Check if this is a test payment (total_amount = 0 is only allowed in test mode)
+                payment_test_mode = os.environ.get('PAYMENT_TEST_MODE', 'false').lower() == 'true'
+                
+                if not payment_test_mode:
+                    # Production mode - verify actual payment
+                    if total_amount <= 0 and settlement_amount <= 0:
+                        logger.error(f"Security Alert: Attempted to process $0 payment for {plan}. User: {user_id}")
+                        raise HTTPException(
+                            status_code=400, 
+                            detail="Invalid payment: No payment amount detected. Please contact support."
+                        )
+                    
+                    # Verify the amount matches the expected plan price (with some tolerance for currency conversion)
+                    expected_amount = expected_amounts.get(plan, 0)
+                    actual_amount = max(total_amount, settlement_amount)
+                    
+                    # Allow 10% tolerance for currency conversion/fees
+                    min_expected = expected_amount * 0.9
+                    
+                    if actual_amount < min_expected:
+                        logger.error(f"Security Alert: Payment amount mismatch. Expected: {expected_amount}, Got: {actual_amount}")
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Payment amount verification failed. Expected at least ${expected_amount/100:.2f}, received ${actual_amount/100:.2f}"
+                        )
+                else:
+                    # Test mode - allow $0 payments but log it
+                    logger.warning(f"TEST MODE: Processing $0 payment for {plan}. User: {user_id}")
                 
                 # Verify user_id matches the one in metadata (TRUSTED SOURCE)
                 metadata = session_data.get('metadata', {})
