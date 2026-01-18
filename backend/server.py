@@ -484,6 +484,12 @@ async def payment_success(
     
     # SECURITY: Verify payment with Dodo Payments if session_id or payment_id is provided
     # This is critical for unauthenticated requests and highly recommended for authenticated ones
+    
+    # Clean up session_id - if it's the literal placeholder string, treat it as None
+    if session_id and (session_id == '{CHECKOUT_SESSION_ID}' or session_id == '%7BCHECKOUT_SESSION_ID%7D'):
+        logger.warning(f"Received literal placeholder as session_id: {session_id}, treating as None")
+        session_id = None
+    
     verification_id = session_id or payment_id
     if verification_id:
         # Allow test sessions for local development
@@ -845,6 +851,11 @@ async def create_checkout_session(request: CheckoutRequest):
     except Exception as e:
         logging.error(f"Dodo Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Checkout failed")
+
+# Add root endpoint to main app
+@app.get("/")
+async def root():
+    return {"message": "HugPDF Backend API", "status": "running", "version": "1.0.0"}
 
 # Include the router in the main app
 app.include_router(api_router)
