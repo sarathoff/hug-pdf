@@ -3,6 +3,11 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Button } from './ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from './ui/tooltip';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 // Configure PDF.js worker
@@ -79,29 +84,45 @@ const PDFViewer = ({ pdfUrl }) => {
             {/* Page Navigation */}
             {numPages && numPages > 1 && (
                 <div className="sticky bottom-0 w-full bg-white border-t py-3 px-4 flex items-center justify-center gap-4 shadow-lg">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={goToPrevPage}
-                        disabled={pageNumber <= 1}
-                        className="h-8"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={goToPrevPage}
+                                disabled={pageNumber <= 1}
+                                className="h-8"
+                                aria-label="Previous page"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Previous page</p>
+                        </TooltipContent>
+                    </Tooltip>
 
                     <span className="text-sm font-medium text-gray-700">
                         Page {pageNumber} of {numPages}
                     </span>
 
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={goToNextPage}
-                        disabled={pageNumber >= numPages}
-                        className="h-8"
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={goToNextPage}
+                                disabled={pageNumber >= numPages}
+                                className="h-8"
+                                aria-label="Next page"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Next page</p>
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
             )}
         </div>
