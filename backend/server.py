@@ -52,10 +52,10 @@ try:
     if not supabase_url or not supabase_key:
         raise ValueError("Supabase keys missing")
     supabase: Client = create_client(supabase_url, supabase_key)
-    
+
     # Initialize Admin Client (Service Role) for bypassing RLS
     service_role_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    
+
     if service_role_key:
         supabase_admin: Client = create_client(supabase_url, service_role_key)
         logging.info("Supabase Admin client initialized with SERVICE_ROLE_KEY")
@@ -63,7 +63,7 @@ try:
         logging.warning("SUPABASE_SERVICE_ROLE_KEY not found! Falling back to SUPABASE_KEY. RLS bypass will NOT work.")
         # Fallback (will likely fail for admin tasks)
         supabase_admin: Client = create_client(supabase_url, supabase_key)
-    
+
 except Exception as e:
     logging.warning(f"Failed to initialize Supabase Client: {e}")
     supabase = None
@@ -88,21 +88,21 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
     """Get current user from JWT token using Supabase for persistence"""
     if not authorization or not authorization.startswith('Bearer '):
         return None
-    
+
     token = authorization.replace('Bearer ', '')
     payload = auth_service.verify_token(token)
     if not payload:
         logging.warning("DEBUG: verify_token returned None")
         return None
-        
+
     logging.info(f"DEBUG: Token verified. Payload: {payload}")
-    
+
     if not supabase:
         logging.error("DEBUG: Supabase client is None")
         return None
-        
+
     response = supabase.table("users").select("*").eq("user_id", payload['user_id']).execute()
-    
+
     if not response.data:
         logging.warning(f"DEBUG: Authenticated user {payload['user_id']} not found in 'users' table. Auto-creating...")
         # Auto-create user if missing (Self-healing)
@@ -110,7 +110,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
             if not supabase_admin:
                 logging.error("Supabase Admin client not initialized, cannot auto-create user")
                 return None
-                
+
             new_user = {
                 "user_id": payload['user_id'],
                 "email": payload.get('email'),
@@ -131,11 +131,11 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
                 retry_response = supabase_admin.table("users").select("*").eq("user_id", payload['user_id']).execute()
                 if retry_response.data:
                     return retry_response.data[0]
-            
+
             logging.error(f"Failed to auto-create user: {e}")
             return None
         return None
-        
+
     return response.data[0]
 
 # Define Request/Response Models
@@ -172,7 +172,7 @@ class PurchaseRequest(BaseModel):
 
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -213,7 +213,7 @@ async def get_me(current_user: Optional[dict] = Depends(get_current_user)):
     """Get current user data (bypasses RLS issues)"""
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     # Fetch fresh data from DB using admin client
     try:
         if supabase_admin:
@@ -249,16 +249,16 @@ async def generate_initial(
                     status_code=402,
                     detail=f"{request.mode.capitalize()} mode is only available for Pro or On-Demand users. Please upgrade or top-up to access this feature."
                 )
-        
+
         # Note: Credits are now deducted on PDF download, not on generation
         remaining_credits = current_user['credits'] if current_user else None
-        
+
         # Generate HTML using Gemini with mode support
         result = gemini_service.generate_html_from_prompt(request.prompt, mode=request.mode)
-        
+
         # Create or get session
         session_id = request.session_id or str(uuid.uuid4())
-        
+
         # Create session document
         session = Session(
             session_id=session_id,
@@ -269,14 +269,14 @@ async def generate_initial(
             current_html=result["html"],
             current_latex=result.get("latex")
         )
-        
+
         # Store in Supabase
         if not supabase:
              logging.warning("Supabase client not initialized, skipping DB storage")
         else:
             data = session.model_dump(mode='json')
             supabase.table("sessions").upsert(data).execute()
-        
+
         return GenerateInitialResponse(
             session_id=session_id,
             html_content=result["html"],
@@ -310,34 +310,34 @@ async def chat(
                     status_code=402,
                     detail=f"{request.mode.capitalize()} mode is only available for Pro or On-Demand users. Please upgrade or top-up to access this feature."
                 )
-        
+
         # Get session from Supabase
         response = supabase.table("sessions").select("*").eq("session_id", request.session_id).execute()
-        
+
         if not response.data:
             raise HTTPException(status_code=404, detail="Session not found")
-            
+
         session_data = response.data[0]
-        
+
         # Modify HTML and LaTeX using Gemini with mode support
         result = gemini_service.modify_html(
-            request.current_html, 
+            request.current_html,
             request.message,
             current_latex=session_data.get('current_latex'),
             mode=request.mode
         )
-        
+
         session = Session(**session_data)
         session.messages.append(Message(role="user", content=request.message))
         session.messages.append(Message(role="assistant", content=result["message"]))
         session.current_html = result["html"]
         if "latex" in result:
             session.current_latex = result["latex"]
-        
+
         # Store updated session
         updated_data = session.model_dump(mode='json')
         supabase.table("sessions").update(updated_data).eq("session_id", request.session_id).execute()
-        
+
         return ChatResponse(
             html_content=result["html"],
             latex_content=result.get("latex"),
@@ -361,7 +361,7 @@ async def preview_pdf(request: DownloadPDFRequest):
             pdf_bytes = await pdf_service.generate_pdf(request.html_content, preview_mode=True)
         else:
             raise HTTPException(status_code=400, detail="No content provided for PDF generation")
-            
+
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
@@ -388,16 +388,16 @@ async def download_pdf(
                     status_code=402,
                     detail="Insufficient PDFs remaining. Please purchase more to continue downloading."
                 )
-            
+
             # Deduct 1 credit (1 PDF) in Supabase
             if supabase_admin:
                 supabase_admin.table("users").update({
                     'credits': current_user['credits'] - 1,
                     'updated_at': datetime.now(timezone.utc).isoformat()
                 }).eq('user_id', current_user['user_id']).execute()
-                
+
                 logger.info(f"Deducted 1 PDF credit from user {current_user['user_id']}. Remaining: {current_user['credits'] - 1}")
-        
+
         # Use LaTeX if available, otherwise fall back to HTML (though HTML won't work well)
         if request.latex_content:
             pdf_bytes = await pdf_service.generate_pdf(request.latex_content)
@@ -409,7 +409,7 @@ async def download_pdf(
             )
         else:
             raise HTTPException(status_code=400, detail="No content provided for PDF generation")
-            
+
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
@@ -428,7 +428,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     """Get current user info"""
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     return UserResponse(
         user_id=current_user['user_id'],
         email=current_user['email'],
@@ -446,7 +446,7 @@ async def create_checkout(
     """Create payment checkout session"""
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     try:
         result = await payment_service.create_checkout_session(
             current_user['user_id'],
@@ -469,27 +469,27 @@ async def payment_success(
     """Handle successful payment - Verifies payment session and updates user credits"""
     if not supabase:
         raise HTTPException(status_code=503, detail="Database not initialized")
-    
+
     # CASE 1: Authenticated User
     if current_user:
         # Verify the user_id matches the authenticated user
         if current_user['user_id'] != user_id:
             logger.warning(f"User {current_user['user_id']} attempted to add credits to user {user_id}")
             raise HTTPException(status_code=403, detail="Cannot modify another user's credits")
-    
+
     # CASE 2: Unauthenticated User (Session verification required)
     elif not session_id and not payment_id:
         # If not logged in AND no session/payment ID, we can't do anything
         raise HTTPException(status_code=401, detail="Authentication required or valid session/payment ID missing")
-    
+
     # SECURITY: Verify payment with Dodo Payments if session_id or payment_id is provided
     # This is critical for unauthenticated requests and highly recommended for authenticated ones
-    
+
     # Clean up session_id - if it's the literal placeholder string, treat it as None
     if session_id and (session_id == '{CHECKOUT_SESSION_ID}' or session_id == '%7BCHECKOUT_SESSION_ID%7D'):
         logger.warning(f"Received literal placeholder as session_id: {session_id}, treating as None")
         session_id = None
-    
+
     verification_id = session_id or payment_id
     if verification_id:
         # Allow test sessions for local development
@@ -505,12 +505,12 @@ async def payment_success(
                 if not dodo_api_key:
                     logger.error("DODO_PAYMENTS_API_KEY not configured")
                     raise HTTPException(status_code=503, detail="Payment service not configured")
-                
+
                 headers = {
                     'Authorization': f'Bearer {dodo_api_key}',
                     'Content-Type': 'application/json'
                 }
-            
+
                 # Get checkout session/payment details from Dodo
                 # Try checkouts endpoint first (for sessions), then payments endpoint (for one-time payments)
                 response = requests.get(
@@ -518,7 +518,7 @@ async def payment_success(
                     headers=headers,
                     timeout=10
                 )
-                
+
                 # If checkout not found, try payments endpoint
                 if response.status_code == 404 and payment_id:
                     response = requests.get(
@@ -526,55 +526,55 @@ async def payment_success(
                         headers=headers,
                         timeout=10
                     )
-                
+
                 if response.status_code != 200:
                     logger.error(f"Failed to verify payment {verification_id}: {response.status_code}")
                     raise HTTPException(status_code=400, detail="Payment verification failed")
-                
+
                 session_data = response.json()
-                
+
                 # Log the full session data for debugging
                 logger.info(f"Dodo payment data for {verification_id}: {session_data}")
-                
+
                 # Verify the session is completed/paid
                 session_status = session_data.get('status')
                 # Removed 'free' from valid statuses - users must actually pay
                 valid_statuses = ['completed', 'paid', 'succeeded']
-                
+
                 if session_status not in valid_statuses:
                     logger.warning(f"Payment {verification_id} has invalid status: {session_status}")
                     raise HTTPException(status_code=400, detail=f"Payment not completed. Status: {session_status}")
-                
+
                 # CRITICAL SECURITY: Verify actual payment was made (amount > 0)
                 # This prevents users from getting Pro access with free/discounted checkouts
                 total_amount = session_data.get('total_amount', 0)
                 settlement_amount = session_data.get('settlement_amount', 0)
-                
+
                 # For credit_topup, expect $2 (200 cents), for pro expect $5 (500 cents)
                 expected_amounts = {
                     'credit_topup': 200,  # $2 in cents
                     'pro': 500  # $5 in cents
                 }
-                
+
                 # Check if this is a test payment (total_amount = 0 is only allowed in test mode)
                 payment_test_mode = os.environ.get('PAYMENT_TEST_MODE', 'false').lower() == 'true'
-                
+
                 if not payment_test_mode:
                     # Production mode - verify actual payment
                     if total_amount <= 0 and settlement_amount <= 0:
                         logger.error(f"Security Alert: Attempted to process $0 payment for {plan}. User: {user_id}")
                         raise HTTPException(
-                            status_code=400, 
+                            status_code=400,
                             detail="Invalid payment: No payment amount detected. Please contact support."
                         )
-                    
+
                     # Verify the amount matches the expected plan price (with some tolerance for currency conversion)
                     expected_amount = expected_amounts.get(plan, 0)
                     actual_amount = max(total_amount, settlement_amount)
-                    
+
                     # Allow 10% tolerance for currency conversion/fees
                     min_expected = expected_amount * 0.9
-                    
+
                     if actual_amount < min_expected:
                         logger.error(f"Security Alert: Payment amount mismatch. Expected: {expected_amount}, Got: {actual_amount}")
                         raise HTTPException(
@@ -584,22 +584,22 @@ async def payment_success(
                 else:
                     # Test mode - allow $0 payments but log it
                     logger.warning(f"TEST MODE: Processing $0 payment for {plan}. User: {user_id}")
-                
+
                 # Verify user_id matches the one in metadata (TRUSTED SOURCE)
                 metadata = session_data.get('metadata', {})
                 metadata_user_id = metadata.get('user_id')
                 metadata_plan = metadata.get('plan')
-                
+
                 if not metadata_user_id or metadata_user_id != user_id:
                     logger.error(f"Security Mismatch: Request user_id {user_id} != Metadata user_id {metadata_user_id}")
                     raise HTTPException(status_code=400, detail="Payment verification failed: User ID mismatch")
-                
+
                 if metadata_plan != plan:
                     logger.warning(f"Plan mismatch: Request {plan} != Metadata {metadata_plan}, using metadata plan")
                     plan = metadata_plan
-                
+
                 logger.info(f"Payment verified for user {user_id} via Dodo {verification_id}")
-                
+
             except requests.RequestException as e:
                 logger.error(f"Error verifying payment with Dodo: {str(e)}")
                 raise HTTPException(status_code=503, detail="Payment verification service unavailable")
@@ -616,10 +616,10 @@ async def payment_success(
             # Unauthenticated users absolutely require verification
             logger.error(f"Security Alert: Unauthenticated payment attempt without verification ID")
             raise HTTPException(
-                status_code=401, 
+                status_code=401,
                 detail="Authentication and payment verification required"
             )
-        
+
     try:
         # Check if this payment has already been processed (idempotency check)
         if verification_id:
@@ -629,7 +629,7 @@ async def payment_success(
                 if existing.data:
                     logger.warning(f"Payment {verification_id} already processed, skipping credit addition")
                     return {
-                        'success': True, 
+                        'success': True,
                         'message': 'Payment already processed',
                         'credits_added': 0,
                         'plan': plan
@@ -637,23 +637,23 @@ async def payment_success(
             except Exception as e:
                 # Table might not exist - log and continue
                 logger.info(f"Could not check payment_sessions table (may not exist): {e}")
-        
+
         # Update credits based on plan
         if plan == 'credit_topup':
             credits_to_add = 20
         else:
             credits_to_add = 50  # Pro: 50 PDFs/month
-        
+
         # Get current user details to determine plan update strategy
         # Use admin client to bypass RLS
         resp = supabase_admin.table("users").select("credits, plan").eq("user_id", user_id).execute()
         if not resp.data:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         current_db_user = resp.data[0]
         new_credits = current_db_user['credits'] + credits_to_add
         current_plan = current_db_user['plan']
-        
+
         # Determine new plan
         # If buying Pro, set to Pro.
         # If buying Top-up:
@@ -667,23 +667,23 @@ async def payment_success(
                 final_plan = 'on_demand'
         else:
             final_plan = plan  # e.g., 'pro'
-        
+
         logger.info(f"Updating user {user_id}: old_plan={current_plan}, new_plan={final_plan}, new_credits={new_credits}")
-        
+
         # Update user plan and credits using admin client to bypass RLS
         update_response = supabase_admin.table("users").update({
             'plan': final_plan,
             'credits': new_credits,
             'updated_at': datetime.now(timezone.utc).isoformat()
         }).eq('user_id', user_id).execute()
-        
+
         # Verify the update was successful
         if not update_response.data:
             logger.error(f"Failed to update user {user_id} - no data returned from update")
             raise HTTPException(status_code=500, detail="Failed to update user plan and credits")
-        
+
         logger.info(f"User {user_id} updated successfully: {update_response.data}")
-        
+
         # Record this payment session to prevent duplicates (optional)
         if verification_id:
             try:
@@ -696,12 +696,12 @@ async def payment_success(
                 }).execute()
             except Exception as e:
                 logger.info(f"Could not record payment session (table may not exist): {e}")
-        
+
         logger.info(f"Added {credits_to_add} credits to user {user_id} for plan {plan}")
-        
+
         return {
-            'success': True, 
-            'credits_added': credits_to_add, 
+            'success': True,
+            'credits_added': credits_to_add,
             'plan': plan,
             'new_total_credits': new_credits,
             'message': f'Successfully upgraded to {plan} plan with {credits_to_add} credits added'
@@ -735,12 +735,12 @@ async def search_images(query: str, per_page: int = 15, page: int = 1):
     try:
         if not query:
             raise HTTPException(status_code=400, detail="Query parameter is required")
-        
+
         result = pexels_service.search_images(query, per_page, page)
-        
+
         if result is None:
             raise HTTPException(status_code=503, detail="Image search service unavailable")
-        
+
         return result
     except HTTPException:
         raise
@@ -753,10 +753,10 @@ async def get_curated_images(per_page: int = 15, page: int = 1):
     """Get curated images from Pexels"""
     try:
         result = pexels_service.get_curated_images(per_page, page)
-        
+
         if result is None:
             raise HTTPException(status_code=503, detail="Image service unavailable")
-        
+
         return result
     except HTTPException:
         raise
@@ -774,24 +774,24 @@ async def upload_image(
         # Create temp_uploads directory if it doesn't exist
         temp_dir = ROOT_DIR / "temp_uploads"
         temp_dir.mkdir(exist_ok=True)
-        
+
         # Generate unique filename
         file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
         unique_name = f"{uuid.uuid4()}.{file_ext}"
         filepath = temp_dir / unique_name
-        
+
         # Save file
         content = await file.read()
         with open(filepath, 'wb') as f:
             f.write(content)
-        
+
         # Get backend URL from environment or construct it
         backend_url = os.environ.get('BACKEND_URL', 'http://localhost:8000')
         url = f"{backend_url}/api/temp-images/{unique_name}"
-        
+
         logger.info(f"Uploaded image {file.filename} as {unique_name}")
         return {"url": url, "filename": file.filename}
-        
+
     except Exception as e:
         logger.error(f"Error uploading image: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -799,10 +799,22 @@ async def upload_image(
 @api_router.get("/temp-images/{filename}")
 async def serve_temp_image(filename: str):
     """Serve temporarily uploaded images"""
-    filepath = ROOT_DIR / "temp_uploads" / filename
+    temp_dir = (ROOT_DIR / "temp_uploads").resolve()
+    filepath = (temp_dir / filename).resolve()
+
+    # Security Check: Prevent path traversal
+    try:
+        if not filepath.is_relative_to(temp_dir):
+            logger.warning(
+            f"SECURITY: Path traversal attempt blocked for {filename}"
+        )
+            raise HTTPException(status_code=404, detail="Image not found")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Image not found")
+
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Image not found")
-    
+
     return FileResponse(filepath)
 
 @api_router.post("/rephrasy/detect", response_model=RephrasyDetectResponse)
@@ -813,13 +825,13 @@ async def detect_ai_content(
     """Detect if content is AI-generated using Rephrasy API"""
     try:
         result = rephrasy_service.detect_ai_content(request.text, request.mode)
-        
+
         if result is None:
             return RephrasyDetectResponse(
                 success=False,
                 error="Rephrasy detection service unavailable or API key not configured"
             )
-        
+
         return RephrasyDetectResponse(
             success=True,
             result=result
@@ -845,13 +857,13 @@ async def humanize_content(
             words_based_pricing=request.words_based_pricing,
             return_costs=request.return_costs
         )
-        
+
         if result is None:
             return RephrasyHumanizeResponse(
                 success=False,
                 error="Rephrasy humanization service unavailable or API key not configured"
             )
-        
+
         return RephrasyHumanizeResponse(
             success=True,
             output=result.get('output'),
