@@ -20,21 +20,27 @@ class PDFService:
         urls = re.findall(pattern, latex_content)
         logger.info(f"Found {len(urls)} image URLs in LaTeX")
         return urls
-    
+
     @staticmethod
     def _download_image(url: str, temp_dir: Path) -> str:
         """Download image from URL to temp directory"""
         try:
             logger.info(f"Downloading image from: {url}")
-            
+
             # Check if this is a localhost/temp-images URL - copy directly instead of downloading
             if 'localhost' in url or '127.0.0.1' in url:
                 if '/temp-images/' in url:
                     filename = url.split('/temp-images/')[-1].split('?')[0]
                     # Construct path to uploaded file
                     from pathlib import Path as PathLib
-                    source_path = PathLib(__file__).parent.parent / "temp_uploads" / filename
-                    
+                    uploads_dir = (PathLib(__file__).parent.parent / "temp_uploads").resolve()
+                    source_path = (uploads_dir / filename).resolve()
+
+                    # Security check: Ensure source_path is within uploads_dir
+                    if not source_path.is_relative_to(uploads_dir):
+                        logger.warning(f"Path traversal attempt blocked in PDF generation: {filename}")
+                        return None
+
                     if source_path.exists():
                         # Copy to temp directory
                         dest_path = temp_dir / filename
@@ -44,14 +50,14 @@ class PDFService:
                     else:
                         logger.error(f"Local image not found: {source_path}")
                         return None
-            
+
             # For external URLs (Pexels, etc.), download via HTTP
             response = requests.get(url, timeout=30)
-            
+
             if response.status_code == 200:
                 # Generate unique filename based on URL hash
                 url_hash = hashlib.md5(url.encode()).hexdigest()
-                
+
                 # Try to get extension from URL or content-type
                 ext = 'jpg'
                 if '.' in url.split('/')[-1].split('?')[0]:
@@ -62,23 +68,23 @@ class PDFService:
                         ext = 'png'
                     elif 'jpeg' in content_type or 'jpg' in content_type:
                         ext = 'jpg'
-                
+
                 filename = f"img_{url_hash}.{ext}"
                 filepath = temp_dir / filename
-                
+
                 with open(filepath, 'wb') as f:
                     f.write(response.content)
-                
+
                 logger.info(f"Successfully downloaded image to: {filepath}")
                 return str(filepath)
             else:
                 logger.error(f"Failed to download image from {url}: HTTP {response.status_code}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Error downloading image from {url}: {str(e)}")
             return None
-    
+
     @staticmethod
     def _replace_urls_with_paths(latex_content: str, url_to_path_map: dict) -> str:
         """Replace image URLs with local file paths in LaTeX"""
@@ -90,53 +96,53 @@ class PDFService:
                 modified_latex = modified_latex.replace(url, latex_path)
                 logger.info(f"Replaced URL {url} with local path {latex_path}")
         return modified_latex
-    
-    
+
+
     @staticmethod
     async def generate_pdf(latex_content: str, preview_mode: bool = False) -> bytes:
         """Convert LaTeX to PDF using pdflatex
-        
+
         Args:
             latex_content: LaTeX source code
             preview_mode: If True, skip second compilation pass for faster previews
         """
-        
+
         logger.info(f"Attempting PDF generation from LaTeX (preview_mode={preview_mode})")
-        
+
         # Create a temporary directory for LaTeX compilation
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
-            
+
             # Step 1: Extract and download images
             image_urls = PDFService._extract_image_urls(latex_content)
             url_to_path_map = {}
-            
+
             if image_urls:
                 logger.info(f"Processing {len(image_urls)} images...")
                 for url in image_urls:
                     local_path = PDFService._download_image(url, tmpdir_path)
                     if local_path:
                         url_to_path_map[url] = local_path
-                
+
                 # Replace URLs with local paths
                 latex_content = PDFService._replace_urls_with_paths(latex_content, url_to_path_map)
-            
+
             # Step 2: Write modified LaTeX to file
             tex_file = tmpdir_path / "document.tex"
             pdf_file = tmpdir_path / "document.pdf"
             log_file = tmpdir_path / "document.log"
-            
+
             # Write LaTeX content to file
             tex_file.write_text(latex_content, encoding='utf-8')
-            
+
             try:
                 # Try to compile with pdflatex
                 # -interaction=nonstopmode: don't stop for errors
                 result = subprocess.run(
                     [
-                        'pdflatex', 
+                        'pdflatex',
                         '-interaction=nonstopmode',
-                        '-output-directory', str(tmpdir_path), 
+                        '-output-directory', str(tmpdir_path),
                         str(tex_file)
                     ],
                     capture_output=True,
@@ -145,21 +151,21 @@ class PDFService:
                     timeout=120,
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
                 )
-                
+
                 logger.info(f"First pdflatex run completed with return code: {result.returncode}")
-                
+
                 # Run twice to resolve references (skip for preview mode for speed)
                 # Run twice to resolve references (skip for preview mode unless TOC is present)
                 # Table of Contents requires a second pass to generate the .toc file and include it
                 needs_second_pass = not preview_mode or '\\tableofcontents' in latex_content
-                
+
                 if pdf_file.exists() and needs_second_pass:
                     logger.info("Running pdflatex second time to resolve references/TOC")
                     subprocess.run(
                         [
-                            'pdflatex', 
+                            'pdflatex',
                             '-interaction=nonstopmode',
-                            '-output-directory', str(tmpdir_path), 
+                            '-output-directory', str(tmpdir_path),
                             str(tex_file)
                         ],
                         capture_output=True,
@@ -170,8 +176,8 @@ class PDFService:
                     )
                 elif preview_mode:
                     logger.info("Skipping second pdflatex run (preview mode, no TOC found)")
-                
-                
+
+
                 if pdf_file.exists():
                     pdf_bytes = pdf_file.read_bytes()
                     logger.info(f"Successfully generated PDF from LaTeX ({len(pdf_bytes)} bytes)")
@@ -182,7 +188,7 @@ class PDFService:
                     logger.error(f"STDOUT (full): {result.stdout}")
                     logger.error(f"STDERR (full): {result.stderr}")
                     logger.error(f"LaTeX content (first 500 chars): {latex_content[:500]}")
-                    
+
                     # Check if .log file exists for more details
                     error_details = "LaTeX compilation failed."
                     if log_file.exists():
@@ -190,9 +196,9 @@ class PDFService:
                         log_tail = log_content[-1000:]
                         logger.error(f"LaTeX log file (last 2000 chars): {log_content[-2000:]}")
                         error_details += f"\nLog tail:\n{log_tail}"
-                    
+
                     raise Exception(error_details)
-                    
+
             except FileNotFoundError:
                 logger.error("pdflatex not found. Please install a TeX distribution (MiKTeX or TeX Live)")
                 raise Exception("PDF generation failed: pdflatex not installed. Please install MiKTeX or TeX Live.")

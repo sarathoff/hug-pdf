@@ -1,0 +1,4 @@
+## 2026-01-20 - Path Traversal in File Serving
+**Vulnerability:** The `serve_temp_image` endpoint and `PDFService._download_image` method blindly concatenated user-provided filenames with a base directory. This allowed attackers to use `..` sequences to traverse out of the trusted `temp_uploads` directory and access sensitive files like `.env`.
+**Learning:** Simply joining paths with `pathlib.Path` (e.g., `base / user_input`) does not resolve `..` components or validate containment. `FileResponse` and file operations will happily accept paths pointing outside the intended directory.
+**Prevention:** When handling user-supplied paths, always canonicalize the path using `.resolve()` and verify it is contained within the trusted root using `.is_relative_to(trusted_root)`. Explicitly reject any path where this check fails.
