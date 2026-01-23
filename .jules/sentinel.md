@@ -1,0 +1,4 @@
+## 2026-01-23 - Path Traversal in File Serving
+**Vulnerability:** Found a critical path traversal vulnerability in `backend/server.py` (`serve_temp_image`) and `backend/services/pdf_service.py` (`_download_image`). The code was constructing file paths using `ROOT_DIR / "temp_uploads" / filename` without verifying if the resolved path was still within `temp_uploads`. An attacker could use `../` in the filename to access arbitrary files on the system (e.g., source code, environment files).
+**Learning:** `pathlib.Path` concatenation (`/`) does not resolve `..` automatically, but when the path is opened or checked for existence, the OS resolves it. Always use `.resolve()` and `.is_relative_to()` to enforce directory boundaries.
+**Prevention:** When serving files based on user input, strictly validate the final resolved path is within the intended directory using `safe_path = (base / user_input).resolve(); if not safe_path.is_relative_to(base.resolve()): raise Error`.
