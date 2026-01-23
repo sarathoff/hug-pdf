@@ -533,10 +533,11 @@ const EditorPage = () => {
         }
     };
     return (
-        <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
+        <TooltipProvider>
+            <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
             {/* Mobile Header - Always visible on mobile */}
             <div className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-white z-20 shadow-sm flex-shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2" aria-label="Go back">
                     <ChevronLeft className="h-5 w-5 mr-1" />
                 </Button>
 
@@ -567,9 +568,14 @@ const EditorPage = () => {
 
                     {/* Desktop Header */}
                     <div className="hidden md:flex p-4 border-b bg-white items-center justify-between shadow-sm z-10 flex-shrink-0">
-                        <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8">
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8" aria-label="Back to Home">
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Back to Home</TooltipContent>
+                        </Tooltip>
                         <span className="font-semibold text-sm">Editor</span>
                         <Badge variant="secondary" className="text-xs">
                             {user?.credits || 0} credits
@@ -709,14 +715,20 @@ const EditorPage = () => {
                                 }}
                                 className="min-h-[50px] max-h-[120px] bg-transparent border-0 focus-visible:ring-0 resize-none p-2 text-sm leading-normal w-full"
                             />
-                            <Button
-                                size="icon"
-                                className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                                onClick={handleSendMessage}
-                                disabled={!input.trim() || loading || !sessionId}
-                            >
-                                <Send className="h-4 w-4" />
-                            </Button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="icon"
+                                        className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                        onClick={handleSendMessage}
+                                        disabled={!input.trim() || loading || !sessionId}
+                                        aria-label="Send message"
+                                    >
+                                        <Send className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Send message</TooltipContent>
+                            </Tooltip>
                         </div>
                     </div>
                 </div>
@@ -770,6 +782,7 @@ const EditorPage = () => {
                                             if (htmlContent) generatePreview(htmlContent);
                                         }}
                                         disabled={previewLoading || !htmlContent}
+                                        aria-label="Refresh Preview"
                                     >
                                         <Sparkles className="w-4 h-4 md:mr-1" />
                                         <span className="hidden md:inline">Refresh Preview</span>
@@ -857,6 +870,7 @@ const EditorPage = () => {
                         <button
                             onClick={() => setShowUpgradeModal(false)}
                             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                            aria-label="Close upgrade options"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -913,7 +927,8 @@ const EditorPage = () => {
                     </div>
                 </div>
             )}
-        </div>
+            </div>
+        </TooltipProvider>
     );
 };
 
