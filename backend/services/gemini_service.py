@@ -107,10 +107,10 @@ PERPLEXITY SUMMARY:
                 try:
                     # Use the prompt as search query (first 50 chars for relevance)
                     search_query = prompt[:50]
-                    pexels_result = self.pexels_service.search_images(search_query, per_page=1)
+                    pexels_result = self.pexels_service.search_images(search_query, per_page=2)
                     
                     if pexels_result and 'photos' in pexels_result:
-                        image_urls = [photo['src']['large'] for photo in pexels_result['photos'][:1]]
+                        image_urls = [photo['src']['large'] for photo in pexels_result['photos'][:2]]
                         if image_urls:
                             images_section = "\n\nAVAILABLE IMAGES (Insert these in your document):\n"
                             for i, url in enumerate(image_urls):
@@ -158,6 +158,23 @@ User request: {prompt}
 Generate ONLY the LaTeX code.
 """
         else:  # normal mode
+            # AUTO-IMAGE INSERTION for Normal Mode: Fetch 1 image for documentation/reports
+            normal_images_section = ""
+            logger.info("Fetching relevant image for Normal Mode...")
+            try:
+                # Use the prompt as search query (first 50 chars for relevance)
+                search_query = prompt[:50]
+                pexels_result = self.pexels_service.search_images(search_query, per_page=1)
+                
+                if pexels_result and 'photos' in pexels_result:
+                    image_urls = [photo['src']['large'] for photo in pexels_result['photos'][:1]]
+                    if image_urls:
+                        normal_images_section = "\n\nAVAILABLE IMAGE (Insert this in your document if relevant):\n"
+                        normal_images_section += f"Image: {image_urls[0]}\n"
+                        normal_images_section += "\nINSTRUCTIONS: Use \\includegraphics[width=0.7\\textwidth]{{{url}}} to insert the image at a relevant section if appropriate for the document type.\n"
+            except Exception as e:
+                logger.warning(f"Failed to fetch image for Normal mode: {e}")
+            
             system_prompt = f"""
 Act as a fast LaTeX document generator. Create a clean, professional document.
 
@@ -167,6 +184,8 @@ REQUIREMENTS:
 3. Speed: Be concise but effective. Focus on clear formatting.
 
 {base_instructions}
+
+{normal_images_section}
 
 User request: {prompt}
 
@@ -371,3 +390,180 @@ Generate ONLY the complete modified LaTeX code, nothing else. No explanations, n
         
         logger.info(f"Modified LaTeX ({mode} mode) based on request: {modification_request[:50]}...")
         return result
+    def extract_json_from_markdown(self, markdown: str, schema: Dict) -> Dict:
+        """Extract structured data from markdown content using Gemini
+        
+        Args:
+            markdown: Raw markdown content from Firecrawl
+            schema: Expected JSON schema for extraction
+            
+        Returns:
+            Dictionary containing extracted structured data
+        """
+        import json
+        
+        schema_str = json.dumps(schema, indent=2)
+        
+        system_prompt = f"""
+You are an expert data extraction assistant. Your task is to extract structured information from the provided markdown content according to the specified JSON schema.
+
+MARKDOWN CONTENT:
+{markdown[:20000]}  # Limit content length to avoid context limits
+
+TARGET JSON SCHEMA:
+{schema_str}
+
+INSTRUCTIONS:
+1. Extract all relevant information that matches the schema
+2. Return ONLY valid JSON
+3. Do not include markdown formatting like ```json ... ```
+4. If a field is missing, omit it or use null (unless required)
+5. Infer logical values where appropriate (e.g. current role = True if no end date)
+
+Analyze the content carefully and provide the highly accurate extraction.
+"""
+        
+        try:
+            response = self.client.models.generate_content(
+                model='gemini-2.0-flash-exp',
+                contents=system_prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+            
+            result_text = response.text.strip()
+            
+            # Clean potential markdown
+            if result_text.startswith('```json'):
+                result_text = result_text[7:]
+            if result_text.startswith('```'):
+                result_text = result_text[3:]
+            if result_text.endswith('```'):
+                result_text = result_text[:-3]
+                
+            return json.loads(result_text.strip())
+            
+        except Exception as e:
+            logger.error(f"Error extracting JSON from markdown: {str(e)}")
+            return {}
+
+    def format_content_for_pdf(self, markdown: str, conversion_type: str, metadata: Dict, options: Dict) -> str:
+        """
+        Convert markdown content to LaTeX based on conversion type
+        
+        Args:
+            markdown: Raw markdown content
+            conversion_type: Type of conversion (blog, article, website, resume, docs)
+            metadata: Metadata from scraping (title, author, date, etc.)
+            options: Additional formatting options
+            
+        Returns:
+            LaTeX content ready for PDF generation
+        """
+        logger.info(f"Formatting content as {conversion_type}")
+        
+        # Build type-specific prompt
+        type_prompts = {
+            'blog': """
+Convert this blog post to a professional LaTeX article format.
+
+REQUIREMENTS:
+- Clean, readable article layout
+- Include title, author (if available), and date
+- Preserve headings, lists, and formatting
+- Include images with captions if present
+- Use a modern, blog-friendly style
+""",
+            'article': """
+Convert this article to an academic/professional LaTeX format.
+
+REQUIREMENTS:
+- Formal article structure with abstract (if present)
+- Proper heading hierarchy
+- Include citations and references if present
+- Professional typography
+- Include tables and figures properly
+""",
+            'website': """
+Convert this website content to a comprehensive LaTeX document.
+
+REQUIREMENTS:
+- Preserve the full content structure
+- Include all sections and subsections
+- Maintain navigation structure as table of contents
+- Include images and media references
+- Clean, organized layout
+""",
+            'resume': """
+Convert this content to a professional resume/CV LaTeX format.
+
+REQUIREMENTS:
+- Professional CV layout
+- Clear sections: Experience, Education, Skills
+- Clean typography optimized for ATS systems
+- Proper spacing and formatting
+- Modern, professional design
+""",
+            'docs': """
+Convert this documentation to a technical LaTeX document.
+
+REQUIREMENTS:
+- Technical documentation format
+- Code blocks with syntax highlighting
+- Clear API/function documentation
+- Table of contents
+- Professional technical styling
+"""
+        }
+        
+        base_prompt = type_prompts.get(conversion_type, type_prompts['article'])
+        
+        # Extract metadata
+        title = metadata.get('title', 'Untitled Document')
+        author = metadata.get('author', '')
+        date = metadata.get('publishedTime', '')
+        
+        full_prompt = f"""
+{base_prompt}
+
+METADATA:
+Title: {title}
+Author: {author}
+Date: {date}
+
+CONTENT (Markdown):
+{markdown[:15000]}
+
+CRITICAL LATEX REQUIREMENTS:
+1. Use \\usepackage{{lmodern}} and \\usepackage[margin=1in]{{geometry}}
+2. NO 'beramono', 'fvm', 'libertine' fonts
+3. Use \\vspace{{1em}} between sections
+4. For images, use \\usepackage{{graphicx}} and \\includegraphics[width=0.8\\textwidth]{{URL}}
+5. Return ONLY the complete LaTeX document, no explanations
+
+Generate the complete LaTeX document now:
+"""
+        
+        try:
+            response = self.client.models.generate_content(
+                model='gemini-2.0-flash-exp',
+                contents=full_prompt
+            )
+            
+            latex_content = response.text.strip()
+            
+            # Clean markdown code blocks if present
+            if latex_content.startswith('```latex'):
+                latex_content = latex_content[8:]
+            elif latex_content.startswith('```'):
+                latex_content = latex_content[3:]
+            if latex_content.endswith('```'):
+                latex_content = latex_content[:-3]
+                
+            return latex_content.strip()
+            
+        except Exception as e:
+            logger.error(f"Error formatting content for PDF: {str(e)}")
+            raise
+

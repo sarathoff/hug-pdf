@@ -30,13 +30,13 @@ const PricingPage = () => {
       // Fallback plans
       setPlans([
         {
-          id: 'pro',
-          name: 'Pro Plan',
-          price: 5,
-          billing: 'monthly',
-          credits: 50,
+          id: 'credit_topup',
+          name: 'Credit Top-Up',
+          price: 2,
+          billing: 'one-time',
+          credits: 20,
           popular: true,
-          features: ["50 PDF downloads/month", "AI-powered generation", "Research papers & resumes", "E-book creation tools", "Priority support", "Commercial license"]
+          features: ['20 Credits added instantly', 'Unlocks Research & E-book modes', 'Removes Watermarks', 'Never expires', 'One-time payment']
         }
       ]);
     }
