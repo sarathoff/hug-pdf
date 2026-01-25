@@ -18,18 +18,19 @@ class PexelsService:
     def search_images(self, query: str, per_page: int = 15, page: int = 1) -> Optional[Dict]:
         """
         Search for images on Pexels
-        
-        Args:
-            query: Search term
-            per_page: Number of results per page (max 80)
-            page: Page number
-            
-        Returns:
-            Dict containing photos array and metadata, or None on error
         """
+        # Fallback for missing API key or errors
+        fallback_response = {
+            'photos': [{
+                'src': {
+                    'large': f'https://dummyimage.com/1024x768/e0e0e0/000000.png&text={query.replace(" ", "+")}'
+                }
+            }]
+        }
+
         if not self.api_key:
-            logger.error("Cannot search images: PEXELS_API_KEY not configured")
-            return None
+            logger.warning("PEXELS_API_KEY not found, using placeholder images")
+            return fallback_response
         
         try:
             headers = {
@@ -52,14 +53,16 @@ class PexelsService:
             if response.status_code == 200:
                 data = response.json()
                 logger.info(f"Pexels search for '{query}' returned {len(data.get('photos', []))} results")
+                if not data.get('photos'):
+                    return fallback_response
                 return data
             else:
                 logger.error(f"Pexels API error: {response.status_code} - {response.text}")
-                return None
+                return fallback_response
                 
         except Exception as e:
             logger.error(f"Error searching Pexels: {str(e)}")
-            return None
+            return fallback_response
     
     def get_curated_images(self, per_page: int = 15, page: int = 1) -> Optional[Dict]:
         """

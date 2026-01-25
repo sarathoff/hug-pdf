@@ -108,6 +108,18 @@ export const AuthProvider = ({ children }) => {
       try {
         console.log('🔐 Initializing authentication...');
 
+        // CRITICAL: Check for OAuth callback in URL hash
+        // Google OAuth redirects with: #access_token=...&refresh_token=...
+        const hash = window.location.hash;
+        if (hash && hash.includes('access_token')) {
+          console.log('🔗 OAuth callback detected in URL, processing...');
+          // Supabase will automatically detect and process this
+          // Give it a moment to process
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // Clean up URL
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+
         // Get session from localStorage (Supabase handles this automatically)
         const { data: { session }, error } = await supabase.auth.getSession();
 
@@ -120,8 +132,17 @@ export const AuthProvider = ({ children }) => {
           if (session?.user) {
             console.log('✅ Session found, syncing user data...');
             setSession(session);
+            // Optimistic update to prevent "flicker" of logged out state
+            setUser({
+              user_id: session.user.id,
+              email: session.user.email,
+              credits: 0, // Will update shortly
+              plan: 'free',
+              loading: true
+            });
+            
             const userData = await syncUserToBackend(session.user);
-            if (isMounted) {
+            if (isMounted && userData) {
               setUser(userData);
             }
           } else {
@@ -169,9 +190,13 @@ export const AuthProvider = ({ children }) => {
           break;
 
         case 'SIGNED_OUT':
-          console.log('👋 User signed out');
-          setSession(null);
-          setUser(null);
+          // Only handle sign out if we're fully initialized
+          // This prevents spurious sign-outs during page load
+          if (initialized) {
+            console.log('👋 User signed out');
+            setSession(null);
+            setUser(null);
+          }
           break;
 
         case 'TOKEN_REFRESHED':

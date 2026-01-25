@@ -122,9 +122,10 @@ const ImagePicker = ({ isOpen, onClose, onSelectImage }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col" aria-describedby="image-picker-description">
                 <DialogHeader>
                     <DialogTitle>Insert Image</DialogTitle>
+                    <p id="image-picker-description" className="sr-only">Search and select an image to insert into your document</p>
                 </DialogHeader>
 
                 {/* Upload Button */}

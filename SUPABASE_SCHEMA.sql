@@ -16,6 +16,7 @@ create table public.users (
   email text,
   credits int default 3,
   plan text default 'free',
+  ppt_count int default 0,
   early_adopter boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now())
@@ -37,9 +38,12 @@ create policy "Users can update their own data" on public.users
 -- SESSIONS TABLE
 create table public.sessions (
   session_id text primary key,
+  user_id uuid references auth.users,
   messages jsonb default '[]'::jsonb,
   current_html text,
   current_latex text,
+  mode text default 'normal',
+  title text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
