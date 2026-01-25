@@ -113,14 +113,19 @@ const EditorPage = () => {
     }, [refreshUser]);
 
     // Load state from localStorage on mount
+    const initialLatex = location.state?.initialLatex;
+    const skipGeneration = location.state?.skipGeneration;
+    const initialPrompt = location.state?.initialPrompt;
+    const pptConfig = location.state?.pptConfig;
+
     useEffect(() => {
         // CHECK FOR NEW INTENT:
         // If we have fresh content/prompt/config from navigation (Homepage), 
         // we should START FRESH and ignore/clear any old session.
         const isNewSession = 
-            (location.state?.initialLatex && location.state?.skipGeneration) || 
-            (location.state?.initialPrompt) || 
-            (location.state?.pptConfig);
+            (initialLatex && skipGeneration) || 
+            (initialPrompt) || 
+            (pptConfig);
 
         if (isNewSession) {
             console.log('Starting NEW SESSION - Clearing previous localStorage data');
@@ -146,7 +151,7 @@ const EditorPage = () => {
             if (savedLatex) setLatexContent(savedLatex);
             if (savedMode) setMode(savedMode);
         }
-    }, [user]); // Re-run if user changes (though mostly on mount)
+    }, [user, initialLatex, skipGeneration, initialPrompt, pptConfig]);
 
     // Save state to localStorage whenever it changes
     useEffect(() => {
@@ -533,7 +538,7 @@ const EditorPage = () => {
                 alert(error.response?.data?.detail || 'Failed to generate presentation. Please try again.');
             }
         }
-    }, [token, refreshUser]);
+    }, [token, refreshUser, generatePreview]);
 
     // Auto-generate PPT if config passed from navigation
     useEffect(() => {
