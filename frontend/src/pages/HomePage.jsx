@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight, Search, Book, Lock, X } from 'lucide-react';
+import { Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight, Search, Book, Lock, X, Upload, Target } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
@@ -11,6 +11,10 @@ const HomePage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [mode, setMode] = useState('normal'); // 'normal' | 'research' | 'ebook'
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showResumeOptimizerModal, setShowResumeOptimizerModal] = useState(false);
+  const [resumeFile, setResumeFile] = useState(null);
+  const [jobDescription, setJobDescription] = useState('');
+  const [optimizerLoading, setOptimizerLoading] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -50,6 +54,58 @@ const HomePage = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleCreatePDF();
+    }
+  };
+
+  const handleOptimizeResume = async () => {
+    if (!resumeFile) return;
+    
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    setOptimizerLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('resume_pdf', resumeFile);
+      if (jobDescription.trim()) {
+        formData.append('job_description', jobDescription);
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/optimize-resume`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.token || localStorage.getItem('token')}` 
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to optimize resume');
+      }
+
+      const data = await response.json();
+      
+      // Navigate to editor with optimized resume
+      setShowResumeOptimizerModal(false);
+      setResumeFile(null);
+      setJobDescription('');
+      navigate('/editor', { 
+        state: { 
+          initialLatex: data.latex_content,
+          mode: 'normal',
+          skipGeneration: true,
+          atsScore: data.ats_score,
+          improvements: data.improvements
+        } 
+      });
+    } catch (error) {
+      console.error('Resume optimization error:', error);
+      alert(error.message || 'Failed to optimize resume');
+    } finally {
+      setOptimizerLoading(false);
     }
   };
 
@@ -214,6 +270,25 @@ const HomePage = () => {
               </button>
             );
           })}
+          
+          {/* Resume Optimizer Card */}
+          <button
+            onClick={() => setShowResumeOptimizerModal(true)}
+            className="group flex items-center gap-4 p-4 bg-gradient-to-br from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-2 border-purple-200 hover:border-purple-300 rounded-2xl transition-all duration-300 hover:shadow-xl text-left"
+          >
+            <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-purple-600 group-hover:text-white transition-colors flex-shrink-0">
+              <Target className="w-5 h-5 text-purple-600 group-hover:text-white" />
+            </div>
+            <div className="flex-1">
+              <span className="text-sm sm:text-base text-gray-900 font-semibold block">
+                Resume Optimizer
+              </span>
+              <span className="text-xs text-gray-600">
+                Upload resume + job description → ATS-optimized PDF
+              </span>
+            </div>
+            <ArrowRight className="w-5 h-5 text-purple-600 group-hover:text-purple-700" />
+          </button>
         </div>
       </div>
 
@@ -279,6 +354,111 @@ const HomePage = () => {
                   className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-blue-500/25"
                 >
                   {user ? 'Upgrade to Pro' : 'Login / Sign Up'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resume Optimizer Modal */}
+      {showResumeOptimizerModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative transform transition-all scale-100">
+            <button
+              onClick={() => {
+                setShowResumeOptimizerModal(false);
+                setResumeFile(null);
+                setJobDescription('');
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 ring-4 ring-white shadow-lg">
+                <Target className="w-8 h-8 text-purple-600" />
+              </div>
+
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Resume Optimizer
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Upload your resume and get an ATS-optimized version
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Resume PDF
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => setResumeFile(e.target.files[0])}
+                    className="hidden"
+                    id="resume-upload"
+                  />
+                  <label
+                    htmlFor="resume-upload"
+                    className="flex items-center justify-center gap-2 w-full px-4 py-8 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 hover:bg-purple-50 cursor-pointer transition-all"
+                  >
+                    <Upload className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-600">
+                      {resumeFile ? resumeFile.name : 'Click to upload PDF'}
+                    </span>
+                  </label>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Job Description (Optional)
+                </label>
+                <textarea
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Paste the job description here for role-specific optimization..."
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all resize-none"
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  Add job description to tailor your resume for the role
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowResumeOptimizerModal(false);
+                    setResumeFile(null);
+                    setJobDescription('');
+                  }}
+                  disabled={optimizerLoading}
+                  className="flex-1 border-gray-200 hover:bg-gray-50 text-gray-700"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleOptimizeResume}
+                  disabled={!resumeFile || optimizerLoading}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/25"
+                >
+                  {optimizerLoading ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      Optimizing...
+                    </>
+                  ) : (
+                    <>
+                      Optimize Resume
+                      <ArrowRight className="ml-2 w-4 h-4" />
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

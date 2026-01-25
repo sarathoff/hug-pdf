@@ -62,7 +62,7 @@ const EditorPage = () => {
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState(null);
-    const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'preview' | 'code'
+    const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'preview'
     const [downloadLoading, setDownloadLoading] = useState(false);
     const [pdfZoom, setPdfZoom] = useState(100);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -72,6 +72,8 @@ const EditorPage = () => {
     const [humanizeLoading, setHumanizeLoading] = useState(false);
     const [detectLoading, setDetectLoading] = useState(false);
     const [aiDetectionResult, setAiDetectionResult] = useState(null);
+    const [atsScore, setAtsScore] = useState(null);
+    const [improvements, setImprovements] = useState([]);
 
     // Refs for preventing double-firing
     const initialized = useRef(false);
@@ -104,6 +106,12 @@ const EditorPage = () => {
 
     // Load state from localStorage on mount
     useEffect(() => {
+        // Skip localStorage if we have fresh content from navigation
+        if (location.state?.initialLatex && location.state?.skipGeneration) {
+            console.log('Skipping localStorage - using fresh content from navigation');
+            return;
+        }
+        
         const savedSessionId = localStorage.getItem('hugpdf_sessionId');
         const savedMessages = localStorage.getItem('hugpdf_messages');
         const savedHtml = localStorage.getItem('hugpdf_htmlContent');
@@ -215,7 +223,32 @@ const EditorPage = () => {
     // Check Auth & Initial Prompt
     useEffect(() => {
         const initialPrompt = location.state?.initialPrompt;
-        if (initialPrompt && !initialized.current) {
+        const initialLatex = location.state?.initialLatex;
+        const skipGeneration = location.state?.skipGeneration;
+        
+        // Handle pre-generated content (from web converter, resume optimizer, etc.)
+        if (initialLatex && skipGeneration && !initialized.current) {
+            initialized.current = true;
+            setLatexContent(initialLatex);
+            setHtmlContent(initialLatex);
+            
+            // Set ATS score and improvements if available (from resume optimizer)
+            if (location.state?.atsScore) {
+                setAtsScore(location.state.atsScore);
+            }
+            if (location.state?.improvements) {
+                setImprovements(location.state.improvements);
+            }
+            
+            setMessages([
+                { role: 'assistant', content: 'Your PDF has been generated successfully!' }
+            ]);
+            if (window.innerWidth >= 768) {
+                setActiveTab('preview');
+            }
+        }
+        // Handle normal prompt-based generation
+        else if (initialPrompt && !initialized.current) {
             handleInitialGeneration(initialPrompt);
         }
     }, [location.state, handleInitialGeneration]);
@@ -265,6 +298,14 @@ const EditorPage = () => {
             generatePreview(htmlContent);
         }
     }, [activeTab, htmlContent, pdfPreviewUrl, generatePreview]);
+    // Auto-refresh preview when content changes
+    useEffect(() => {
+        if (htmlContent && activeTab === 'preview') {
+            setPdfPreviewUrl(null);
+            generatePreview(htmlContent);
+        }
+    }, [htmlContent, activeTab, generatePreview]);
+
 
     // Cleanup
     useEffect(() => {
@@ -654,6 +695,35 @@ const EditorPage = () => {
                                     <span>Powered by Perplexity AI</span>
                                 </div>
                             )}
+                            {atsScore !== null && (
+                                <div className="mt-2 flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
+                                    <Badge className={`${
+                                        atsScore >= 80 ? 'bg-green-100 text-green-700 border-green-300' :
+                                        atsScore >= 60 ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
+                                        'bg-red-100 text-red-700 border-red-300'
+                                    } border font-semibold`}>
+                                        ATS Score: {atsScore}/100
+                                    </Badge>
+                                    {improvements.length > 0 && (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <button className="text-xs text-gray-500 hover:text-gray-700 underline">
+                                                        {improvements.length} improvements
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="max-w-xs">
+                                                    <ul className="text-xs space-y-1">
+                                                        {improvements.map((imp, idx) => (
+                                                            <li key={idx}>• {imp}</li>
+                                                        ))}
+                                                    </ul>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Image Picker and Rephrasy Buttons */}
@@ -735,12 +805,7 @@ const EditorPage = () => {
                                 >
                                     <Eye className="w-3 h-3 inline mr-1" /> Preview
                                 </button>
-                                <button
-                                    onClick={() => setActiveTab('code')}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${activeTab === 'code' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}
-                                >
-                                    <Code className="w-3 h-3 inline mr-1" /> Code
-                                </button>
+
                             </div>
                             {activeTab === 'code' && (
                                 <span className="md:hidden text-sm font-semibold">LaTeX Source</span>
@@ -753,14 +818,7 @@ const EditorPage = () => {
                         <div className="flex items-center gap-2">
                             {activeTab === 'preview' && (
                                 <>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="md:hidden text-xs"
-                                        onClick={() => setActiveTab('code')}
-                                    >
-                                        <Code className="w-4 h-4 mr-1" /> Code
-                                    </Button>
+
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -913,6 +971,67 @@ const EditorPage = () => {
                     </div>
                 </div>
             )}
+
+            {/* Image Picker Modal */}
+            <ImagePicker
+                isOpen={showImagePicker}
+                onClose={() => setShowImagePicker(false)}
+                onSelectImage={async (imageData) => {
+                    try {
+                        setShowImagePicker(false);
+                        setLoading(true);
+                        
+                        // Send image insertion request directly to backend without showing URL
+                        const imagePrompt = `Insert this image: ${imageData.url}`;
+                        
+                        // Add a hidden system message (not shown to user)
+                        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                        
+                        const response = await axios.post(
+                            `${API}/modify-latex`,
+                            {
+                                session_id: sessionId,
+                                modification: imagePrompt,
+                                current_latex: latexContent || htmlContent,
+                                mode: mode
+                            },
+                            { headers }
+                        );
+
+                        // Update content without showing the URL message
+                        if (response.data.latex_content) {
+                            setLatexContent(response.data.latex_content);
+                        }
+                        if (response.data.html_content) {
+                            setHtmlContent(response.data.html_content);
+                        }
+
+                        // Add a user-friendly message instead of the URL
+                        setMessages((prev) => [
+                            ...prev,
+                            { role: 'user', content: '📷 Inserted image' },
+                            { role: 'assistant', content: response.data.message || 'Image inserted successfully!' }
+                        ]);
+
+                        setLoading(false);
+                        
+                        // Refresh user credits
+                        if (refreshUser) refreshUser().catch(console.error);
+                        
+                    } catch (error) {
+                        setLoading(false);
+                        console.error('Error inserting image:', error);
+                        const errorMsg = error.response?.status === 402
+                            ? 'Insufficient credits. Please upgrade to continue.'
+                            : 'Failed to insert image. Please try again.';
+                        
+                        setMessages((prev) => [
+                            ...prev,
+                            { role: 'assistant', content: errorMsg }
+                        ]);
+                    }
+                }}
+            />
         </div>
     );
 };

@@ -1,5 +1,6 @@
 import logging
 import jwt
+import base64
 from datetime import datetime, timedelta
 import os
 from typing import Optional
@@ -29,12 +30,30 @@ class AuthService:
             unverified = jwt.decode(token, options={"verify_signature": False})
             
             # Verify the token
-            payload = jwt.decode(
-                token,
-                supabase_jwt_secret,
-                algorithms=['HS256'],
-                options={"verify_aud": False}  # Supabase tokens don't always have aud
-            )
+            try:
+                # Try standard string secret first
+                payload = jwt.decode(
+                    token,
+                    supabase_jwt_secret,
+                    algorithms=['HS256'],
+                    options={"verify_aud": False}
+                )
+            except jwt.InvalidSignatureError:
+                # If signature fails, try decoding the secret from Base64
+                # Supabase secrets are often Base64 encoded
+                try:
+                    logger.info("DEBUG: Standard verification failed, trying Base64 decoded secret...")
+                    decoded_secret = base64.urlsafe_b64decode(supabase_jwt_secret + "==") # Ensure padding
+                    payload = jwt.decode(
+                        token,
+                        decoded_secret,
+                        algorithms=['HS256'],
+                        options={"verify_aud": False}
+                    )
+                    logger.info("DEBUG: Verification successful with Base64 decoded secret!")
+                except Exception as b64_error:
+                    logger.info(f"DEBUG: Base64 verification also failed: {b64_error}")
+                    raise # Re-raise original or let it fall through to JWKS
             
             # Extract user_id from Supabase token structure
             logging.info(f"DEBUG: Token verified successfully. Payload: {payload}")

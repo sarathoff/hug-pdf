@@ -27,6 +27,9 @@ from services.auth_service import AuthService
 from services.payment_service import PaymentService
 from services.pexels_service import PexelsService
 from services.rephrasy_service import RephrasyService
+from services.content_converter_service import ContentConverterService
+from services.pdf_extractor_service import PDFExtractorService
+from services.resume_optimizer_service import ResumeOptimizerService
 from models.session import Session, Message
 from models.user import User, UserCreate, UserLogin, UserResponse
 from dodopayments import DodoPayments
@@ -76,6 +79,10 @@ auth_service = AuthService()
 payment_service = PaymentService()
 pexels_service = PexelsService()
 rephrasy_service = RephrasyService()
+content_converter_service = ContentConverterService()
+pdf_extractor_service = PDFExtractorService()
+resume_optimizer_service = ResumeOptimizerService()
+
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -202,6 +209,24 @@ class RephrasyHumanizeResponse(BaseModel):
     flesch_score: Optional[float] = None
     costs: Optional[dict] = None
     error: Optional[str] = None
+
+class ConvertToPDFRequest(BaseModel):
+    url: str
+    conversion_type: str = 'article'  # blog, article, website, resume, docs
+    options: Optional[dict] = {}
+
+class ConvertToPDFResponse(BaseModel):
+    latex_content: str
+    message: str
+    metadata: Optional[dict] = None
+    conversion_type: str
+
+class OptimizeResumeResponse(BaseModel):
+    latex_content: str
+    ats_score: int
+    improvements: List[str]
+    message: str
+
 
 # Routes
 @api_router.get("/")
@@ -546,9 +571,16 @@ async def payment_success(
                     raise HTTPException(status_code=400, detail=f"Payment not completed. Status: {session_status}")
                 
                 # CRITICAL SECURITY: Verify actual payment was made (amount > 0)
-                # This prevents users from getting Pro access with free/discounted checkouts
+                # EXCEPTION: Allow $0 payments if a valid coupon was applied (100% discount)
                 total_amount = session_data.get('total_amount', 0)
                 settlement_amount = session_data.get('settlement_amount', 0)
+                
+                # Check if a coupon/discount was applied
+                discount_amount = session_data.get('discount_amount', 0)
+                coupon_code = session_data.get('coupon_code')
+                # Dodo may store coupons in different fields
+                applied_coupons = session_data.get('coupons', [])
+                has_coupon = bool(coupon_code or applied_coupons or discount_amount > 0)
                 
                 # For credit_topup, expect $2 (200 cents), for pro expect $5 (500 cents)
                 expected_amounts = {
@@ -560,27 +592,38 @@ async def payment_success(
                 payment_test_mode = os.environ.get('PAYMENT_TEST_MODE', 'false').lower() == 'true'
                 
                 if not payment_test_mode:
-                    # Production mode - verify actual payment
+                    # Production mode - verify actual payment OR valid coupon
                     if total_amount <= 0 and settlement_amount <= 0:
-                        logger.error(f"Security Alert: Attempted to process $0 payment for {plan}. User: {user_id}")
-                        raise HTTPException(
-                            status_code=400, 
-                            detail="Invalid payment: No payment amount detected. Please contact support."
-                        )
-                    
-                    # Verify the amount matches the expected plan price (with some tolerance for currency conversion)
-                    expected_amount = expected_amounts.get(plan, 0)
-                    actual_amount = max(total_amount, settlement_amount)
-                    
-                    # Allow 10% tolerance for currency conversion/fees
-                    min_expected = expected_amount * 0.9
-                    
-                    if actual_amount < min_expected:
-                        logger.error(f"Security Alert: Payment amount mismatch. Expected: {expected_amount}, Got: {actual_amount}")
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Payment amount verification failed. Expected at least ${expected_amount/100:.2f}, received ${actual_amount/100:.2f}"
-                        )
+                        # $0 payment detected - check if it's legitimate (coupon applied)
+                        if has_coupon:
+                            logger.info(f"✅ Accepting $0 payment for {plan} - Valid coupon applied. User: {user_id}, Coupon: {coupon_code or 'discount applied'}, Discount: ${discount_amount/100:.2f}")
+                            # Allow the payment to proceed - it's a legitimate 100% discount
+                        else:
+                            # No coupon detected - this is suspicious
+                            logger.error(f"Security Alert: Attempted to process $0 payment WITHOUT coupon for {plan}. User: {user_id}")
+                            raise HTTPException(
+                                status_code=400, 
+                                detail="Invalid payment: No payment amount detected and no coupon applied. Please contact support."
+                            )
+                    else:
+                        # Non-zero payment - verify the amount matches expected (with tolerance for coupons/discounts)
+                        expected_amount = expected_amounts.get(plan, 0)
+                        actual_amount = max(total_amount, settlement_amount)
+                        
+                        # If there's a discount, the actual amount may be less than expected
+                        # Only verify minimum amount if NO discount was applied
+                        if not has_coupon:
+                            # Allow 10% tolerance for currency conversion/fees
+                            min_expected = expected_amount * 0.9
+                            
+                            if actual_amount < min_expected:
+                                logger.error(f"Security Alert: Payment amount mismatch. Expected: {expected_amount}, Got: {actual_amount}")
+                                raise HTTPException(
+                                    status_code=400,
+                                    detail=f"Payment amount verification failed. Expected at least ${expected_amount/100:.2f}, received ${actual_amount/100:.2f}"
+                                )
+                        else:
+                            logger.info(f"Payment with discount accepted: ${actual_amount/100:.2f} (Original: ${expected_amount/100:.2f}, Discount: ${discount_amount/100:.2f})")
                 else:
                     # Test mode - allow $0 payments but log it
                     logger.warning(f"TEST MODE: Processing $0 payment for {plan}. User: {user_id}")
@@ -804,6 +847,119 @@ async def serve_temp_image(filename: str):
         raise HTTPException(status_code=404, detail="Image not found")
     
     return FileResponse(filepath)
+
+
+@api_router.post("/convert-to-pdf", response_model=ConvertToPDFResponse)
+async def convert_to_pdf(
+    request: ConvertToPDFRequest,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Convert any web content to professional PDF"""
+    try:
+        # Validate URL
+        if not content_converter_service.validate_url(request.url):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid URL. Please provide a valid web URL (e.g., https://example.com/blog-post)"
+            )
+        
+        # Validate conversion type
+        valid_types = ['blog', 'article', 'website', 'resume', 'docs']
+        if request.conversion_type not in valid_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid conversion type. Must be one of: {', '.join(valid_types)}"
+            )
+        
+        # Convert content to PDF
+        logger.info(f"Converting {request.conversion_type} from: {request.url}")
+        result = content_converter_service.convert_to_pdf(
+            url=request.url,
+            conversion_type=request.conversion_type,
+            options=request.options or {}
+        )
+        
+        if not result:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to convert content. Please ensure the URL is accessible and contains valid content."
+            )
+        
+        return ConvertToPDFResponse(
+            latex_content=result['latex'],
+            message=result['message'],
+            metadata=result.get('metadata', {}),
+            conversion_type=result['conversion_type']
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in convert_to_pdf: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/optimize-resume", response_model=OptimizeResumeResponse)
+async def optimize_resume(
+    resume_pdf: UploadFile = File(...),
+    job_description: Optional[str] = None,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Optimize resume PDF for ATS compatibility with optional job description"""
+    try:
+        # Validate file type
+        if not resume_pdf.filename.endswith('.pdf'):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type. Please upload a PDF file."
+            )
+        
+        # Read PDF file
+        pdf_content = await resume_pdf.read()
+        
+        # Validate PDF
+        if not pdf_extractor_service.validate_pdf(pdf_content):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid PDF file. Please upload a valid PDF resume."
+            )
+        
+        # Extract text from PDF
+        logger.info(f"Extracting text from PDF: {resume_pdf.filename}")
+        resume_text = pdf_extractor_service.extract_text_from_pdf(pdf_content)
+        
+        if not resume_text:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to extract text from PDF. Please ensure the PDF contains readable text."
+            )
+        
+        # Optimize resume
+        logger.info(f"Optimizing resume{' for specific job' if job_description else ' (general ATS optimization)'}")
+        result = resume_optimizer_service.optimize_resume(
+            resume_text=resume_text,
+            job_description=job_description
+        )
+        
+        if not result:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to optimize resume. Please try again."
+            )
+        
+        return OptimizeResumeResponse(
+            latex_content=result['latex'],
+            ats_score=result['ats_score'],
+            improvements=result['improvements'],
+            message=result['message']
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in optimize_resume: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @api_router.post("/rephrasy/detect", response_model=RephrasyDetectResponse)
 async def detect_ai_content(
