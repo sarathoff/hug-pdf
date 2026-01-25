@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, FileText, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import { Brain, FileText, Sparkles, CheckCircle2, Loader2, Presentation } from 'lucide-react';
 
 const defaultStages = [
     {
@@ -94,6 +94,37 @@ const researchStages = [
     },
 ];
 
+const pptStages = [
+    {
+        icon: Brain,
+        text: 'Structuring presentation outline...',
+        color: 'text-blue-500',
+        bgColor: 'bg-blue-50',
+        duration: 2000
+    },
+    {
+        icon: FileText,
+        text: 'Generating slide content...',
+        color: 'text-purple-500',
+        bgColor: 'bg-purple-50',
+        duration: 3000
+    },
+    {
+        icon: Presentation,
+        text: 'Designing slide layouts...',
+        color: 'text-orange-500',
+        bgColor: 'bg-orange-50',
+        duration: 3000
+    },
+    {
+        icon: CheckCircle2,
+        text: 'Finalizing deck...',
+        color: 'text-green-500',
+        bgColor: 'bg-green-50',
+        duration: 2000
+    },
+];
+
 const ChatLoadingStages = ({ mode = 'normal' }) => {
     const [currentStage, setCurrentStage] = useState(0);
     const [progress, setProgress] = useState(0);
@@ -102,6 +133,7 @@ const ChatLoadingStages = ({ mode = 'normal' }) => {
     let currentStages = defaultStages;
     if (mode === 'ebook') currentStages = ebookStages;
     if (mode === 'research') currentStages = researchStages;
+    if (mode === 'ppt') currentStages = pptStages;
 
     useEffect(() => {
         // Reset stage when mode changes

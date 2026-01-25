@@ -8,10 +8,11 @@ import logging
 import requests
 
 # Configure logging at startup
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
 logger = logging.getLogger(__name__)
 
 from pathlib import Path
@@ -30,6 +31,7 @@ from services.rephrasy_service import RephrasyService
 from services.content_converter_service import ContentConverterService
 from services.pdf_extractor_service import PDFExtractorService
 from services.resume_optimizer_service import ResumeOptimizerService
+from services.ppt_generator_service import PPTGeneratorService
 from models.session import Session, Message
 from models.user import User, UserCreate, UserLogin, UserResponse
 from dodopayments import DodoPayments
@@ -82,6 +84,7 @@ rephrasy_service = RephrasyService()
 content_converter_service = ContentConverterService()
 pdf_extractor_service = PDFExtractorService()
 resume_optimizer_service = ResumeOptimizerService()
+ppt_generator_service = PPTGeneratorService(gemini_service, pexels_service)
 
 
 # Create the main app without a prefix
@@ -226,6 +229,19 @@ class OptimizeResumeResponse(BaseModel):
     ats_score: int
     improvements: List[str]
     message: str
+
+class GeneratePPTRequest(BaseModel):
+    topic: Optional[str] = None
+    content: Optional[str] = None
+    num_slides: int = 10
+    style: str = "minimal"  # minimal, default, elegant
+
+class GeneratePPTResponse(BaseModel):
+    latex_content: str
+    slide_count: int
+    images_used: List[Optional[str]] = []
+    message: str
+    session_id: Optional[str] = None
 
 
 # Routes
@@ -372,6 +388,55 @@ async def chat(
         raise
     except Exception as e:
         logging.error(f"Error in chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ModifyLatexRequest(BaseModel):
+    session_id: Optional[str] = None
+    modification: str
+    current_latex: str
+    mode: Optional[str] = 'normal'
+
+class ModifyLatexResponse(BaseModel):
+    latex_content: str
+    html_content: str # For frontend compatibility, same as latex
+    message: str
+
+@api_router.post("/modify-latex", response_model=ModifyLatexResponse)
+async def modify_latex(
+    request: ModifyLatexRequest,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Directly modify LaTeX content (used for image insertion etc)"""
+    try:
+        # Validate mode access if needed (similar to chat)
+        if request.mode in ['research', 'ebook'] and not current_user:
+             raise HTTPException(status_code=401, detail="Authentication required")
+
+        result_latex = gemini_service.modify_latex(
+            request.current_latex,
+            request.modification,
+            mode=request.mode
+        )
+        
+        # Update session if session_id is provided
+        if request.session_id:
+             try:
+                # Update DB via Supabase
+                if supabase:
+                    supabase.table("sessions").update({
+                        "current_latex": result_latex,
+                        "current_html": result_latex # Keep in sync
+                    }).eq("session_id", request.session_id).execute()
+             except Exception as e:
+                 logging.warning(f"Failed to update session {request.session_id} in DB: {e}")
+
+        return ModifyLatexResponse(
+            latex_content=result_latex,
+            html_content=result_latex,
+            message="Content updated successfully"
+        )
+    except Exception as e:
+        logging.error(f"Error in modify-latex: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/preview-pdf")
@@ -1033,6 +1098,114 @@ async def create_status_check(input: StatusCheckCreate):
 async def get_status_checks():
     response = supabase.table("status_checks").select("*").limit(100).order('timestamp', desc=True).execute()
     return response.data
+
+@api_router.post("/generate-ppt", response_model=GeneratePPTResponse)
+async def generate_ppt(
+    request: GeneratePPTRequest,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Generate a professional presentation from topic or content"""
+    try:
+        # Validate inputs
+        if not request.topic and not request.content:
+            raise HTTPException(
+                status_code=400,
+                detail="Either 'topic' or 'content' must be provided"
+            )
+        
+        if request.num_slides < 5 or request.num_slides > 30:
+            raise HTTPException(
+                status_code=400,
+                detail="Number of slides must be between 5 and 30"
+            )
+        
+        if request.style not in ["minimal", "default", "elegant"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Style must be 'minimal', 'default', or 'elegant'"
+            )
+        
+        # Check authentication
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        user_id = current_user.get('user_id')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user data")
+        
+        # Get user data
+        if supabase_admin:
+            user_response = supabase_admin.table("users").select("*").eq("user_id", user_id).execute()
+            
+            if not user_response.data:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            user_data = user_response.data[0]
+            user_plan = user_data.get('plan', 'free')
+            ppt_count = user_data.get('ppt_count', 0)
+            
+            # Check if user has credits
+            credits = user_data.get('credits', 0)
+            
+            if credits < 1:
+                raise HTTPException(
+                    status_code=402,
+                    detail="You don't have enough credits to generate a presentation. Please upgrade your plan or purchase more credits."
+                )
+        
+        # Generate presentation
+        logger.info(f"Generating PPT for user {user_id}: topic={request.topic}, content_length={len(request.content) if request.content else 0}")
+        
+        result = await ppt_generator_service.generate_presentation(
+            topic=request.topic,
+            content=request.content,
+            num_slides=request.num_slides,
+            style=request.style,
+            user_name=user_data.get('name', 'User')
+        )
+        
+        # Deduct 1 credit
+        if supabase_admin:
+            new_credits = credits - 1
+            supabase_admin.table("users").update({
+                "credits": new_credits
+            }).eq("user_id", user_id).execute()
+            
+            logger.info(f"Deducted 1 credit for PPT generation. User {user_id} now has {new_credits} credits.")
+        
+        # Create a new session for this PPT
+        session_id = str(uuid.uuid4())
+        
+        if supabase:
+            new_session = {
+                "session_id": session_id,
+                "user_id": user_id,
+                "mode": "ppt",
+                "title": request.topic if request.topic else "Presentation from content"
+            }
+            supabase.table("sessions").insert(new_session).execute()
+            
+            # Save the initial message
+            initial_message = {
+                "session_id": session_id,
+                "role": "assistant",
+                "content": result['message']
+            }
+            supabase.table("messages").insert(initial_message).execute()
+
+        return GeneratePPTResponse(
+            latex_content=result['latex_content'],
+            slide_count=result['slide_count'],
+            images_used=result['images_used'],
+            message=result['message'],
+            session_id=session_id
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating PPT: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate presentation: {str(e)}")
 
 class CheckoutRequest(BaseModel):
     productId: str

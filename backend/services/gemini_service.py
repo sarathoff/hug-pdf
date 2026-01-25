@@ -303,8 +303,10 @@ Generate ONLY the LaTeX code.
             "mode": mode
         }
     
-    def modify_latex(self, current_latex: str, modification_request: str) -> str:
+    def modify_latex(self, current_latex: str, modification_request: str, mode: str = 'normal') -> str:
         """Modify existing LaTeX based on user request"""
+        
+        # Default system prompt for normal documents
         system_prompt = f"""
 You are an expert at modifying LaTeX documents. The user has an existing LaTeX document and wants to make changes.
 
@@ -340,23 +342,77 @@ IMAGE HANDLING INSTRUCTIONS:
 
 Generate ONLY the complete modified LaTeX code, nothing else. No explanations, no markdown code blocks, just the raw LaTeX.
 """
+
+        # PPT / Beamer Specific Prompt
+        if mode == 'ppt':
+            system_prompt = f"""
+You are an expert at creating and observing LaTeX Beamer presentations. The user has an existing presentation and wants to modify it.
+
+Current LaTeX (Beamer):
+{current_latex}
+
+User's modification request: {modification_request}
+
+IMPORTANT:
+1. Return the COMPLETE modified LaTeX document.
+2. MODIFY the existing content based on the request. Do NOT generate a random new presentation.
+3. If the request is vague (e.g. "improve this"), improve the language and formatting of the CURRENT slides.
+2. MUST maintain \\documentclass{{beamer}} and the slide structure using \\begin{{frame}}...\\end{{frame}}.
+3. Do NOT convert this into a normal article/report. KEEP IT AS SLIDES.
+4. CONTENT QUALITY: Ensure professional, detailed, and high-quality content. Avoid generic placeholders.
+
+IMAGE HANDLING FOR SLIDES (CRITICAL):
+1. When user provides an image URL (e.g. [URL: ...]) or asks to add an image:
+   - If the slide has text, use \\begin{{columns}}:
+     \\begin{{columns}}[T]
+     \\column{{0.5\\textwidth}}
+     (Bullet points here)
+     \\column{{0.5\\textwidth}}
+     \\begin{{figure}}
+     \\centering
+     \\includegraphics[width=\\textwidth]{{URL}}
+     \\end{{figure}}
+     \\end{{columns}}
+   - If the slide is empty or image-only, use:
+     \\begin{{figure}}
+     \\centering
+     \\includegraphics[width=0.8\\textwidth]{{URL}}
+     \\end{{figure}}
+2. Ensure \\usepackage{{graphicx}} is present.
+
+CONTENT INSTRUCTIONS:
+1. Keep text concise (bullet points).
+2. Avoid long paragraphs.
+3. Use \\frametitle{{...}} for slide titles.
+4. If asked to "improve" or "detail", EXPAND on the EXISTING slides. Do NOT create a new presentation from scratch.
+5. PRESERVE EXISTING STRUCTURE unless asked otherwise.
+
+Generate ONLY the complete modified LaTeX code (Beamer), nothing else. No explanations, no markdown code blocks.
+"""
         
         try:
             response = self.client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-2.0-flash-exp',
                 contents=system_prompt
             )
             latex_content = response.text.strip()
             
-            # Clean up potential markdown formatting
-            if latex_content.startswith('```latex') or latex_content.startswith('```tex'):
-                latex_content = latex_content.split('\n', 1)[1] if '\n' in latex_content else latex_content[7:]
-            if latex_content.startswith('```'):
-                latex_content = latex_content[3:]
-            if latex_content.endswith('```'):
-                latex_content = latex_content[:-3]
+            # Clean up potential markdown formatting with Regex for robustness
+            import re
             
-            latex_content = latex_content.strip()
+            # Pattern: Extract content inside triple backticks (latex/tex optional)
+            # If no backticks, assume the whole content is LaTeX (or contains it)
+            code_block_match = re.search(r'```(?:latex|tex)?\s*(.*?)\s*```', latex_content, re.DOTALL)
+            
+            if code_block_match:
+                latex_content = code_block_match.group(1).strip()
+            else:
+                # Fallback: if no code blocks, look for \documentclass...
+                if "\\documentclass" in latex_content:
+                    start = latex_content.find("\\documentclass")
+                    latex_content = latex_content[start:]
+                
+                latex_content = latex_content.strip()
             
             logger.info(f"Modified LaTeX based on request: {modification_request[:50]}...")
             return latex_content
@@ -379,7 +435,8 @@ Generate ONLY the complete modified LaTeX code, nothing else. No explanations, n
                 # Add research context to modification request
                 modification_request += f"\n\nAdditional research context: {research_context}"
         
-        latex_content = self.modify_latex(latex_to_modify, modification_request)
+        # Pass the mode to modify_latex so it knows if it's PPT or Doc
+        latex_content = self.modify_latex(latex_to_modify, modification_request, mode=mode)
         
         result = {
             "html": latex_content,

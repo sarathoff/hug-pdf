@@ -3,13 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight, Search, Book, Lock, X, Upload, Target } from 'lucide-react';
+import { Textarea } from '../components/ui/textarea';
+import { Slider } from '../components/ui/slider';
+import { Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight, Search, Book, Lock, X, Upload, Target, Presentation } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [mode, setMode] = useState('normal'); // 'normal' | 'research' | 'ebook'
+  const [mode, setMode] = useState('normal'); // 'normal' | 'research' | 'ebook' | 'ppt'
+  
+  // PPT Mode States
+  const [pptInputMode, setPptInputMode] = useState('topic'); // 'topic' or 'content'
+  const [pptTopic, setPptTopic] = useState('');
+  const [pptContent, setPptContent] = useState('');
+
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showResumeOptimizerModal, setShowResumeOptimizerModal] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
@@ -35,18 +43,43 @@ const HomePage = () => {
   };
 
   const handleCreatePDF = () => {
-    if (prompt.trim()) {
+    // Validation based on mode
+    let isValid = false;
+    if (mode === 'ppt') {
+      isValid = (pptInputMode === 'topic' && pptTopic.trim()) || (pptInputMode === 'content' && pptContent.trim());
+    } else {
+      isValid = prompt.trim();
+    }
+
+    if (isValid) {
       if (!user) {
         navigate('/auth');
         return;
       }
-      if (user.credits <= 0) {
+      
+      // Credit check only for non-PPT modes (PPT has its own monthly limit)
+      if (mode !== 'ppt' && user.credits <= 0) {
         navigate('/pricing');
         return;
       }
+      
       setIsGenerating(true);
-      // Navigate immediately without splash screen, passing mode
-      navigate('/editor', { state: { initialPrompt: prompt, mode: mode } });
+      
+      if (mode === 'ppt') {
+        navigate('/editor', { 
+            state: { 
+                mode: 'ppt',
+            pptConfig: {
+                    topic: pptInputMode === 'topic' ? pptTopic : null,
+                    content: pptInputMode === 'content' ? pptContent : null,
+                    numSlides: 10,
+                    style: 'minimal'
+                }
+            } 
+        });
+      } else {
+        navigate('/editor', { state: { initialPrompt: prompt, mode: mode } });
+      }
     }
   };
 
@@ -174,6 +207,18 @@ const HomePage = () => {
                   <span>Normal</span>
                 </button>
 
+                {/* PPT Mode */}
+                <button
+                  onClick={() => handleModeChange('ppt')}
+                  className={`relative flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 z-10 ${mode === 'ppt'
+                    ? 'bg-white text-orange-600 shadow-sm ring-1 ring-black/5'
+                    : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                >
+                  <Presentation className="w-4 h-4" />
+                  <span>PPT</span>
+                </button>
+
                 {/* Research Mode */}
                 <button
                   onClick={() => handleModeChange('research')}
@@ -205,7 +250,10 @@ const HomePage = () => {
             {/* Mode Description Message */}
             {mode !== 'normal' && (
               <div className="text-center mb-5 -mt-2 animate-in fade-in slide-in-from-top-2 duration-300 px-4">
-                <div className={`inline-flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 px-4 py-1.5 rounded-full text-xs font-medium ${mode === 'research' ? 'bg-purple-100/50 text-purple-700' : 'bg-green-100/50 text-green-700'
+                <div className={`inline-flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 px-4 py-1.5 rounded-full text-xs font-medium ${
+                  mode === 'research' ? 'bg-purple-100/50 text-purple-700' : 
+                  mode === 'ppt' ? 'bg-orange-100/50 text-orange-700' :
+                  'bg-green-100/50 text-green-700'
                   }`}>
                   {mode === 'research' ? (
                     <>
@@ -215,6 +263,11 @@ const HomePage = () => {
                       </div>
                       <span className="hidden sm:inline opacity-30">|</span>
                       <span className="opacity-75 font-semibold">Powered by Perplexity AI</span>
+                    </>
+                  ) : mode === 'ppt' ? (
+                    <>
+                      <Presentation className="w-3 h-3" />
+                      PPT mode creates professional presentations with AI-generated slides
                     </>
                   ) : (
                     <>
@@ -226,28 +279,92 @@ const HomePage = () => {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row items-stretch gap-2 transition-all">
-              <div className="flex-1 flex items-center gap-3 px-4 py-3 sm:py-2 bg-white sm:bg-transparent rounded-lg border sm:border-0 border-gray-100">
-                <Sparkles className="w-5 h-5 text-blue-500 animate-pulse flex-shrink-0" />
-                <input
-                  type="text"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Describe your PDF..."
-                  className="flex-1 bg-transparent parse-none outline-none text-gray-900 placeholder-gray-400 text-base sm:text-lg w-full min-w-0"
-                />
+            {mode === 'ppt' ? (
+              <div className="space-y-4">
+                {/* PPT Controls */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <button
+                      onClick={() => setPptInputMode('topic')}
+                      className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                          pptInputMode === 'topic'
+                              ? 'border-orange-500 bg-orange-50 text-orange-700'
+                              : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                      }`}
+                  >
+                      From Topic
+                  </button>
+                  <button
+                      onClick={() => setPptInputMode('content')}
+                      className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                          pptInputMode === 'content'
+                              ? 'border-orange-500 bg-orange-50 text-orange-700'
+                              : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                      }`}
+                  >
+                      From Content
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200 p-1">
+                  {pptInputMode === 'topic' ? (
+                    <div className="flex items-center px-3">
+                      <Sparkles className="w-5 h-5 text-orange-500 mr-2" />
+                      <input
+                        type="text"
+                        value={pptTopic}
+                        onChange={(e) => setPptTopic(e.target.value)}
+                        placeholder="e.g., The Future of AI, Marketing Strategy 2024..."
+                        className="flex-1 py-3 bg-transparent outline-none text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                  ) : (
+                    <Textarea
+                      value={pptContent}
+                      onChange={(e) => setPptContent(e.target.value)}
+                      placeholder="Paste your content here..."
+                      className="border-0 focus-visible:ring-0 min-h-[100px] resize-none"
+                    />
+                  )}
+                </div>
+
+                <Button
+                  onClick={handleCreatePDF}
+                  disabled={isGenerating || (pptInputMode === 'topic' && !pptTopic.trim()) || (pptInputMode === 'content' && !pptContent.trim())}
+                  size="lg"
+                  className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-lg rounded-xl font-medium"
+                >
+                  Generate Presentation
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
               </div>
-              <Button
-                onClick={handleCreatePDF}
-                disabled={!prompt.trim() || isGenerating}
-                size="lg"
-                className="h-12 sm:h-14 px-8 text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg rounded-xl transition-all duration-300 transform hover:scale-[1.02] w-full sm:w-auto mt-2 sm:mt-0"
-              >
-                Generate
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-stretch gap-2 transition-all">
+                <div className="flex-1 flex items-center gap-3 px-4 py-3 sm:py-2 bg-white sm:bg-transparent rounded-lg border sm:border-0 border-gray-100">
+                  <Sparkles className={`w-5 h-5 flex-shrink-0 ${mode === 'research' ? 'text-purple-500' : 'text-blue-500'} animate-pulse`} />
+                  <input
+                    type="text"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={mode === 'research' ? "Research topic..." : "Describe your PDF..."}
+                    className="flex-1 bg-transparent parse-none outline-none text-gray-900 placeholder-gray-400 text-base sm:text-lg w-full min-w-0"
+                  />
+                </div>
+                <Button
+                  onClick={handleCreatePDF}
+                  disabled={!prompt.trim() || isGenerating}
+                  size="lg"
+                  className={`h-12 sm:h-14 px-8 text-base shadow-lg rounded-xl transition-all duration-300 transform hover:scale-[1.02] w-full sm:w-auto mt-2 sm:mt-0 ${
+                    mode === 'research' 
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700' 
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                  } text-white`}
+                >
+                  Generate
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

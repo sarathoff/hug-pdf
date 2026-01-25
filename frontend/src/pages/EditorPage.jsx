@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import ChatLoadingStages from '../components/ChatLoadingStages';
 import ImagePicker from '../components/ImagePicker';
+import PPTSetupForm from '../components/PPTSetupForm';
 import PDFViewer from '../components/PDFViewer';
 import { Sparkles } from 'lucide-react';
 
@@ -41,7 +42,8 @@ import {
     Lock,
     X,
     Wand2,
-    Shield
+    Shield,
+    Presentation
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -50,7 +52,7 @@ const API = `${BACKEND_URL}/api`;
 const EditorPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, token, refreshUser } = useAuth();
+    const { user, token, refreshUser, loading: authLoading } = useAuth();
 
     // State
     const [messages, setMessages] = useState([]);
@@ -74,6 +76,12 @@ const EditorPage = () => {
     const [aiDetectionResult, setAiDetectionResult] = useState(null);
     const [atsScore, setAtsScore] = useState(null);
     const [improvements, setImprovements] = useState([]);
+    
+    // PPT-specific state
+    const [showPPTSetupModal, setShowPPTSetupModal] = useState(false);
+    const [pptGenerating, setPptGenerating] = useState(false);
+    const [currentSlide, setCurrentSlide] = useState(1);
+    const [totalSlides, setTotalSlides] = useState(0);
 
     // Refs for preventing double-firing
     const initialized = useRef(false);
@@ -106,9 +114,21 @@ const EditorPage = () => {
 
     // Load state from localStorage on mount
     useEffect(() => {
-        // Skip localStorage if we have fresh content from navigation
-        if (location.state?.initialLatex && location.state?.skipGeneration) {
-            console.log('Skipping localStorage - using fresh content from navigation');
+        // CHECK FOR NEW INTENT:
+        // If we have fresh content/prompt/config from navigation (Homepage), 
+        // we should START FRESH and ignore/clear any old session.
+        const isNewSession = 
+            (location.state?.initialLatex && location.state?.skipGeneration) || 
+            (location.state?.initialPrompt) || 
+            (location.state?.pptConfig);
+
+        if (isNewSession) {
+            console.log('Starting NEW SESSION - Clearing previous localStorage data');
+            localStorage.removeItem('hugpdf_sessionId');
+            localStorage.removeItem('hugpdf_messages');
+            localStorage.removeItem('hugpdf_htmlContent');
+            localStorage.removeItem('hugpdf_latexContent');
+            localStorage.removeItem('hugpdf_mode');
             return;
         }
         
@@ -139,7 +159,7 @@ const EditorPage = () => {
 
     // Handle mode change with Pro user validation
     const handleModeChange = (newMode) => {
-        // Check if user is Pro for research and ebook modes
+        // Check if user is Pro for research and ebook modes only
         if (newMode === 'research' || newMode === 'ebook') {
             if (!user) {
                 navigate('/auth');
@@ -150,6 +170,14 @@ const EditorPage = () => {
                 return;
             }
         }
+        
+        // If PPT mode, show setup modal (no Pro required)
+        if (newMode === 'ppt') {
+            setMode(newMode);
+            setShowPPTSetupModal(true);
+            return;
+        }
+        
         setMode(newMode);
     };
 
@@ -221,6 +249,7 @@ const EditorPage = () => {
     }, [token, navigate, refreshUser, messages.length, mode]);
 
     // Check Auth & Initial Prompt
+    // eslint-disable-next-line
     useEffect(() => {
         const initialPrompt = location.state?.initialPrompt;
         const initialLatex = location.state?.initialLatex;
@@ -294,17 +323,22 @@ const EditorPage = () => {
 
     useEffect(() => {
         // Generate preview when switching to preview tab
-        if (activeTab === 'preview' && htmlContent && !pdfPreviewUrl) {
-            generatePreview(htmlContent);
+        const contentToPreview = latexContent || htmlContent;
+        if (activeTab === 'preview' && contentToPreview && !pdfPreviewUrl) {
+            generatePreview(contentToPreview);
         }
-    }, [activeTab, htmlContent, pdfPreviewUrl, generatePreview]);
+    }, [activeTab, htmlContent, latexContent, pdfPreviewUrl, generatePreview]);
+    // Auto-refresh preview when content changes
     // Auto-refresh preview when content changes
     useEffect(() => {
-        if (htmlContent && activeTab === 'preview') {
+        const contentToPreview = latexContent || htmlContent;
+        if (contentToPreview && activeTab === 'preview') {
+            // Only refresh if content changed (simple check)
+            // Note: This might trigger on every render if we don't track prev, but debouncing helps
             setPdfPreviewUrl(null);
-            generatePreview(htmlContent);
+            generatePreview(contentToPreview);
         }
-    }, [htmlContent, activeTab, generatePreview]);
+    }, [htmlContent, latexContent, activeTab, generatePreview]);
 
 
     // Cleanup
@@ -430,6 +464,93 @@ const EditorPage = () => {
             setDownloadLoading(false);
         }
     };
+
+    // Handle PPT Generation
+    const handleGeneratePPT = useCallback(async (pptData) => {
+        try {
+            setPptGenerating(true);
+            setShowPPTSetupModal(false);
+
+            // Show user message immediately
+            setMessages(prev => [
+                ...prev,
+                { role: 'user', content: pptData.topic ? `Create presentation about: ${pptData.topic}` : 'Create presentation from my content' }
+            ]);
+            
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            
+            const response = await axios.post(
+                `${API}/generate-ppt`,
+                {
+                    topic: pptData.topic || null,
+                    content: pptData.content || null,
+                    num_slides: pptData.numSlides || 10,
+                    style: pptData.style || 'minimal'
+                },
+                { headers }
+            );
+            
+            // Set the generated LaTeX content
+            setLatexContent(response.data.latex_content);
+            setTotalSlides(response.data.slide_count);
+            setCurrentSlide(1);
+            
+            // Set session ID for continued chat about this PPT
+            if (response.data.session_id) {
+                setSessionId(response.data.session_id);
+                console.log("PPT Session ID set:", response.data.session_id);
+            }
+            
+            // Add success message to chat
+            // Add success message to chat
+            setMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: response.data.message }
+            ]);
+            
+            // Switch to preview tab and generate preview
+            setActiveTab('preview');
+            // Explicitly trigger preview generation with the new content
+            if (response.data.latex_content) {
+                setTimeout(() => generatePreview(response.data.latex_content), 100);
+            }
+            
+            // Refresh user credits
+            if (refreshUser) {
+                refreshUser().catch(console.error);
+            }
+            
+            setPptGenerating(false);
+            
+        } catch (error) {
+            console.error('PPT generation error:', error);
+            setPptGenerating(false);
+            
+            if (error.response?.status === 402) {
+                // PPT limit reached - show specific message, not generic upgrade modal
+                alert(error.response?.data?.detail || "You've used all 3 free PPT generations this month. Upgrade to Pro for unlimited presentations!");
+            } else {
+                alert(error.response?.data?.detail || 'Failed to generate presentation. Please try again.');
+            }
+        }
+    }, [token, refreshUser]);
+
+    // Auto-generate PPT if config passed from navigation
+    useEffect(() => {
+        // Wait for auth to finish loading before trying to generate (otherwise token might be missing)
+        if (authLoading) return;
+
+        if (location.state?.mode === 'ppt' && location.state?.pptConfig && !initialized.current) {
+            console.log("Found PPT config, generating...");
+            if (token) {
+                initialized.current = true;
+                setMode('ppt');
+                handleGeneratePPT(location.state.pptConfig);
+            } else {
+                console.log("WAITING FOR TOKEN...");
+            }
+        }
+    }, [location.state, handleGeneratePPT, authLoading, token]);
 
     const handleImageSelect = async (imageData) => {
         // Create a clean, professional message for display
@@ -601,10 +722,10 @@ const EditorPage = () => {
             </div>
 
             {/* Main Content Area - Desktop: side-by-side, Mobile: stacked with tabs */}
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            <div className="flex-1 flex flex-col md:flex-row overflow-auto md:overflow-hidden">
                 {/* Sidebar / Chat Panel */}
                 <div className={`w-full md:w-1/3 lg:w-[400px] flex flex-col border-r bg-gray-50/50 backdrop-blur-sm 
-                    ${activeTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
+                    ${activeTab === 'chat' ? 'flex min-h-[calc(100vh-120px)]' : 'hidden md:flex'}`}>
 
                     {/* Desktop Header */}
                     <div className="hidden md:flex p-4 border-b bg-white items-center justify-between shadow-sm z-10 flex-shrink-0">
@@ -645,7 +766,7 @@ const EditorPage = () => {
                                         </div>
                                     </div>
                                 ))}
-                                {loading && <ChatLoadingStages mode={mode} />}
+                                {((loading || pptGenerating) && <ChatLoadingStages mode={mode} />)}
                                 <div ref={messagesEndRef} className="h-4" />
                             </div>
                         </ScrollArea>
@@ -665,6 +786,16 @@ const EditorPage = () => {
                                 >
                                     <FileText className="w-3.5 h-3.5" />
                                     Normal
+                                </button>
+                                <button
+                                    onClick={() => handleModeChange('ppt')}
+                                    className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'ppt'
+                                        ? 'bg-orange-600 text-white border-orange-600 shadow-sm'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <Presentation className="w-3.5 h-3.5" />
+                                    PPT
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('research')}
@@ -1032,6 +1163,47 @@ const EditorPage = () => {
                     }
                 }}
             />
+
+            {/* PPT Setup Modal */}
+            {showPPTSetupModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                                        <Presentation className="w-6 h-6 text-orange-600" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-gray-900">Create Presentation</h2>
+                                        <p className="text-sm text-gray-500">AI-powered slides with images</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowPPTSetupModal(false);
+                                        setMode('normal');
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            {/* Form */}
+                            <PPTSetupForm
+                                onGenerate={handleGeneratePPT}
+                                onCancel={() => {
+                                    setShowPPTSetupModal(false);
+                                    setMode('normal');
+                                }}
+                                isGenerating={pptGenerating}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
