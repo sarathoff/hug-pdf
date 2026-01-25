@@ -102,3 +102,4 @@ supabase==2.10.0
 beautifulsoup4==4.14.3
 zopfli==0.4.0
 PyPDF2==3.0.1
+firecrawl-py==1.0.16
