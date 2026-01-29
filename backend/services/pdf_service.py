@@ -13,6 +13,33 @@ logger = logging.getLogger(__name__)
 
 class PDFService:
     @staticmethod
+    def _sanitize_latex(latex_content: str) -> str:
+        """Sanitize LaTeX content to remove known problematic packages/fonts"""
+        # Replace FiraSans with helvet (standard fallback)
+        if 'FiraSans' in latex_content:
+            logger.warning("Replacing FiraSans with helvet to prevent compilation errors")
+            # Use explicit double backslashes to avoid unicode escape issues
+            latex_content = re.sub(
+                '\\\\usepackage\\[.*?\\]\\{FiraSans\\}', 
+                '\\\\usepackage{helvet}\\\\renewcommand{\\\\familydefault}{\\\\sfdefault}', 
+                latex_content
+            )
+            # Remove mathastext if it was coupled with FiraSans (often causes issues if font missing)
+            if 'mathastext' in latex_content:
+                latex_content = latex_content.replace('\\\\usepackage[italic]{mathastext}', '% mathastext removed')
+        
+        # Remove sansmathaccent package (causes mathkerncmssi10 font error)
+        if 'sansmathaccent' in latex_content:
+            logger.warning("Removing sansmathaccent package to prevent mathkerncmssi10 font error")
+            latex_content = re.sub(
+                r'\\usepackage(?:\[.*?\])?\{sansmathaccent\}',
+                '% sansmathaccent removed (font not available)',
+                latex_content
+            )
+        
+        return latex_content
+
+    @staticmethod
     def _extract_image_urls(latex_content: str) -> list:
         """Extract all image URLs from LaTeX content"""
         # Match \includegraphics{http...} patterns
@@ -102,6 +129,9 @@ class PDFService:
         """
         
         logger.info(f"Attempting PDF generation from LaTeX (preview_mode={preview_mode})")
+        
+        # Sanitize Content (Auto-Fix Fonts)
+        latex_content = PDFService._sanitize_latex(latex_content)
         
         # Create a temporary directory for LaTeX compilation
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -13,6 +13,7 @@ from supabase import Client
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 import logging
+from backend.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class CreditService:
             'diagram_credits': 25,
             'ebook_credits': 2,
             'pdf_limit': -1,  # Unlimited
-            'model': 'gemini-2.0-flash-exp',
+            'model': 'gemini-1.5-flash',
             'perplexity_enabled': True
         },
         'power': {
@@ -42,7 +43,7 @@ class CreditService:
             'diagram_credits': -1,  # Unlimited
             'ebook_credits': 10,
             'pdf_limit': -1,  # Unlimited
-            'model': 'gemini-2.0-flash-exp',
+            'model': 'gemini-1.5-flash',
             'perplexity_enabled': True
         }
     }

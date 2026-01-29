@@ -78,7 +78,7 @@ Generate ONLY the complete LaTeX code, nothing else. No explanations, no markdow
         
         try:
             response = self.client.models.generate_content(
-                model='gemini-2.0-flash-exp',
+                model=settings.GEMINI_MODEL_STARTER,
                 contents=system_prompt
             )
             latex_content = response.text.strip()

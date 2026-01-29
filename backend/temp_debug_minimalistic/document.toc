@@ -1,0 +1,2 @@
+\beamer@sectionintoc {1}{Design Logic}{3}{0}{1}
+\beamer@sectionintoc {2}{Technical Data}{4}{0}{2}

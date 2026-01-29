@@ -1,0 +1,13 @@
+﻿Starting compilation check for yellow.md (FIXED VERSION)...
+Return Code: 0
+STDOUT Head:
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(temp_debug_yellow/document.tex
+LaTeX2e <2025-11-01>
+L3 programming layer <2025-12-24>
+(C:\Program Files\MiKTeX\tex/latex/beamer\beamer.cls
+Document Class: beamer 2025/08/13 v3.76 A class for typesetting presentations
+(C:\Program Files\MiKTeX\tex/latex/beamer\beamerbasemodes.sty
+(C:\Users\Sarath\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolb
