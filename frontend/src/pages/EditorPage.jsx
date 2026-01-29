@@ -734,9 +734,18 @@ const EditorPage = () => {
 
                     {/* Desktop Header */}
                     <div className="hidden md:flex p-4 border-b bg-white items-center justify-between shadow-sm z-10 flex-shrink-0">
-                        <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8">
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8" aria-label="Back to Home">
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Back to Home</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                         <span className="font-semibold text-sm">Editor</span>
                         <Badge variant="secondary" className="text-xs">
                             {user?.credits || 0} credits
@@ -915,14 +924,33 @@ const EditorPage = () => {
                                 }}
                                 className="min-h-[50px] max-h-[120px] bg-transparent border-0 focus-visible:ring-0 resize-none p-2 text-sm leading-normal w-full"
                             />
-                            <Button
-                                size="icon"
-                                className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                                onClick={handleSendMessage}
-                                disabled={!input.trim() || loading || !sessionId}
-                            >
-                                <Send className="h-4 w-4" />
-                            </Button>
+                            <TooltipProvider>
+                                <Tooltip delayDuration={300}>
+                                    <TooltipTrigger asChild>
+                                        <span
+                                            className="h-10 w-10 flex-shrink-0 inline-flex outline-none"
+                                            tabIndex={(!input.trim() || loading || !sessionId) ? 0 : -1}
+                                        >
+                                            <Button
+                                                size="icon"
+                                                className={`h-full w-full transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                                onClick={handleSendMessage}
+                                                disabled={!input.trim() || loading || !sessionId}
+                                                aria-label="Send message"
+                                            >
+                                                <Send className="h-4 w-4" />
+                                            </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>
+                                            {loading ? "Generating response..." :
+                                             (!input.trim() ? "Type a message to send" :
+                                             (!sessionId ? "Initializing session..." : "Send message"))}
+                                        </p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
                     </div>
                 </div>
