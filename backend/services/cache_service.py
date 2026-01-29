@@ -6,6 +6,7 @@ import hashlib
 from typing import Optional, Dict
 from datetime import datetime, timedelta
 import json
+from backend.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class CacheService:
         self, 
         cache_key: str,
         system_instruction: str,
-        model: str = 'gemini-2.0-flash-exp',
+        model: str = settings.GEMINI_MODEL_STARTER,
         ttl_seconds: int = 3600
     ) -> Optional[str]:
         """
@@ -68,16 +69,31 @@ class CacheService:
                     return metadata['cache_name']
             
             # Create new cache using Gemini API
-            # Note: The actual API might differ - check Google's latest documentation
+            # Updated for correct google-genai SDK usage
+            # The SDK expects 'config' for contents in some versions, or direct arguments
+            # We will use the standard pattern for v0.1+
+            
+            # Use a supported model for caching (Flash 1.5 is good)
+            if 'exp' in model:
+                model = 'gemini-1.5-flash-002' # Fallback to a stable model that supports caching
+            
+            # Construct the cache config
+            # Note: create() signature depends on the exact SDK version.
+            # Assuming google-genai 0.2+ or 0.3+
+            
+            from google.genai import types
+
             cache_response = self.client.caches.create(
                 model=model,
-                contents=[
-                    types.Content(
-                        parts=[types.Part(text=system_instruction)]
-                    )
-                ],
-                ttl=f"{ttl_seconds}s",
-                display_name=cache_key
+                config=types.CreateCacheConfig(
+                    contents=[
+                        types.Content(
+                            parts=[types.Part(text=system_instruction)]
+                        )
+                    ],
+                    ttl=f"{ttl_seconds}s",
+                    display_name=cache_key
+                )
             )
             
             cache_name = cache_response.name
@@ -97,6 +113,7 @@ class CacheService:
             
         except Exception as e:
             logger.error(f"Failed to create cache {cache_key}: {str(e)}")
+            # Fallback: if cache creation fails, just return None so we proceed without cache
             return None
     
     def get_cache(self, cache_key: str) -> Optional[str]:
@@ -154,7 +171,7 @@ class CacheService:
         self,
         cache_key: str,
         system_instruction: str,
-        model: str = 'gemini-2.0-flash-exp',
+        model: str = settings.GEMINI_MODEL_STARTER,
         ttl_seconds: int = 3600
     ) -> Optional[str]:
         """

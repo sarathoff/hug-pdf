@@ -1,11 +1,12 @@
 """
 PPT Generator Service
 Generates professional presentations using LaTeX Beamer with AI-powered content and images
+Combines structured generation with modern design principles
 """
 
 import logging
 from typing import Optional, Dict, List
-import re
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class PPTGeneratorService:
             # Fetch images for slides
             images_used = await self._fetch_slide_images(presentation_data['slides'])
             
-            # Generate LaTeX
+            # Generate LaTeX with modern design
             latex_content = self._generate_beamer_latex(
                 presentation_data,
                 images_used,
@@ -91,17 +92,27 @@ class PPTGeneratorService:
     async def _generate_from_topic(self, topic: str, num_slides: int) -> Dict:
         """Generate presentation content from a topic using AI"""
         
-        prompt = f"""Create a professional presentation outline for the topic: "{topic}"
+        prompt = f"""Create a MODERN, PROFESSIONAL presentation outline for: "{topic}"
 
 Generate exactly {num_slides} slides (including title and conclusion).
 
-For each slide, provide:
-1. Slide title
-2. 3-5 concise bullet points
-3. A brief image search query (what image would best represent this slide)
+CONTENT STRATEGY:
+- ANALYZE the topic deeply
+- EXTRACT only the most important points (be selective!)
+- CREATE clear, memorable messaging
+- Each slide: 3-4 bullet points MAXIMUM
+- Bullet points: Short, punchy, impactful (10-15 words max)
 
-Make the presentation engaging, professional, and well-structured with a clear flow.
-Include an introduction slide and a conclusion/summary slide.
+STRUCTURE:
+1. Title slide
+2. Agenda/Overview
+3. Content slides (one main idea per slide)
+4. Conclusion with key takeaways
+
+For each slide provide:
+- Slide title (clear and punchy)
+- 3-4 concise bullet points
+- Image search query (what visual would enhance this slide)
 """
         
         schema = {
@@ -132,16 +143,22 @@ Include an introduction slide and a conclusion/summary slide.
     async def _generate_from_content(self, content: str, num_slides: int) -> Dict:
         """Convert existing content into presentation slides"""
         
-        prompt = f"""Convert the following content into a professional presentation with {num_slides} slides.
+        prompt = f"""Convert this content into a MODERN, PROFESSIONAL presentation with {num_slides} slides.
 
 Content:
 {content}
 
-Structure the content into clear, concise slides with:
-1. A compelling title slide
-2. An outline/agenda slide
-3. Content slides with 3-5 bullet points each
-4. A conclusion/summary slide
+CONTENT STRATEGY:
+- ANALYZE and EXTRACT key points (don't copy verbatim!)
+- CREATE clear, concise messaging
+- Each slide: 3-4 bullet points MAXIMUM
+- Bullet points: Short and impactful (10-15 words max)
+
+Structure into:
+1. Compelling title slide
+2. Agenda slide
+3. Content slides (one main idea each)
+4. Conclusion with key takeaways
 
 For each slide, suggest a relevant image search query.
 """
@@ -173,33 +190,29 @@ For each slide, suggest a relevant image search query.
     
     async def _fetch_slide_images(self, slides: List[Dict]) -> List[str]:
         """Fetch relevant images for slides from Pexels"""
-        images = []
         
-        for slide in slides:
+        async def fetch_one(slide):
             if 'image_query' in slide and slide['image_query']:
                 try:
-                    # Fetch one image per slide
-                    result = await self.pexels_service.search_images(
+                    result = self.pexels_service.search_images(
                         query=slide['image_query'],
                         per_page=1
                     )
                     
                     if result and 'photos' in result and len(result['photos']) > 0:
-                        # Get medium-sized image URL
                         image_url = result['photos'][0]['src']['large']
-                        images.append(image_url)
                         logger.info(f"Fetched image for '{slide['image_query']}': {image_url}")
+                        return image_url
                     else:
-                        images.append(None)
                         logger.warning(f"No image found for query: {slide['image_query']}")
+                        return None
                         
                 except Exception as e:
                     logger.error(f"Error fetching image for '{slide.get('image_query')}': {str(e)}")
-                    images.append(None)
-            else:
-                images.append(None)
+                    return None
+            return None
         
-        return images
+        return await asyncio.gather(*(fetch_one(slide) for slide in slides))
     
     def _generate_beamer_latex(
         self,
@@ -208,58 +221,68 @@ For each slide, suggest a relevant image search query.
         style: str,
         author: str
     ) -> str:
-        """Generate Beamer LaTeX code for the presentation"""
+        """Generate modern Beamer LaTeX code"""
         
         title = presentation_data.get('title', 'Presentation')
         subtitle = presentation_data.get('subtitle', '')
         slides = presentation_data.get('slides', [])
         
-        # Start with document class and packages
-        latex = r"""\documentclass{beamer}
+        # Modern 16:9 aspect ratio
+        latex = r"""\documentclass[aspectratio=169]{beamer}
 
 \usepackage[english]{babel}
 \usepackage[utf8x]{inputenc}
 \usepackage{graphicx}
-\usepackage{booktabs}
 \usepackage{hyperref}
+\usepackage{lmodern}
 
 """
         
-        # Add theme based on style
+        # Modern themes based on style
         if style == "elegant":
-            latex += r"""\mode<presentation>
-{
-\usetheme{Madrid}
+            latex += r"""\usetheme{Madrid}
 \usecolortheme{seahorse}
-\usefonttheme{serif}
-\setbeamertemplate{navigation symbols}{}
-\setbeamertemplate{caption}[numbered]
-}
+
+% Custom colors
+\definecolor{primary}{RGB}{0, 51, 102}
+\definecolor{accent}{RGB}{204, 85, 0}
+
+\setbeamercolor{frametitle}{fg=primary}
+\setbeamercolor{title}{fg=primary}
+\setbeamercolor{structure}{fg=primary}
 """
         elif style == "default":
-            latex += r"""\mode<presentation>
-{
-\usetheme{default}
-\usecolortheme{default}
-\usefonttheme{default}
-\setbeamertemplate{navigation symbols}{}
-\setbeamertemplate{caption}[numbered]
-}
+            latex += r"""\usetheme{Boadilla}
+\usecolortheme{beaver}
+
+% Custom colors
+\definecolor{primary}{RGB}{139, 0, 0}
+\definecolor{accent}{RGB}{255, 140, 0}
+
+\setbeamercolor{frametitle}{fg=primary}
+\setbeamercolor{title}{fg=primary}
 """
-        else:  # minimal
-            latex += r"""\mode<presentation>
-{
-\usetheme{default}
-\usecolortheme{default}
-\usefonttheme{default}
-\setbeamertemplate{navigation symbols}{}
-\setbeamertemplate{caption}[numbered]
-}
+        else:  # minimal - clean and modern
+            latex += r"""\usetheme{default}
+
+% Custom modern colors
+\definecolor{primary}{RGB}{0, 51, 102}
+\definecolor{accent}{RGB}{255, 87, 34}
+
+\setbeamercolor{frametitle}{fg=primary}
+\setbeamercolor{title}{fg=primary}
+\setbeamercolor{structure}{fg=primary}
 """
         
-        # Add title, author, date
-        latex += f"""
-\\title{{{self._escape_latex(title)}}}
+        # Clean footer
+        latex += r"""
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[page number]
+
+"""
+        
+        # Title, author, date
+        latex += f"""\\title{{{self._escape_latex(title)}}}
 """
         
         if subtitle:
@@ -277,61 +300,57 @@ For each slide, suggest a relevant image search query.
 
 """
         
-        # Add outline slide if there are sections
+        # Outline slide
         has_sections = any(slide.get('type') == 'section' for slide in slides)
         if has_sections or len(slides) > 5:
-            latex += r"""% Outline
-\begin{frame}{Outline}
+            latex += r"""\begin{frame}{Agenda}
 \tableofcontents
 \end{frame}
 
 """
         
         # Generate content slides
-        current_section = None
-        
         for i, slide in enumerate(slides):
             slide_type = slide.get('type', 'content')
             slide_title = slide.get('title', f'Slide {i+1}')
             points = slide.get('points', [])
             image_url = images[i] if i < len(images) else None
             
-            # Add section if this is a new section
+            # Add section if needed
             if slide_type == 'section':
                 latex += f"\\section{{{self._escape_latex(slide_title)}}}\n\n"
-                current_section = slide_title
                 continue
             
             # Start frame
             latex += f"\\begin{{frame}}{{{self._escape_latex(slide_title)}}}\n\n"
             
-            # If we have both image and content, use two columns
+            # Modern two-column layout if we have both image and content
             if image_url and points:
                 latex += r"""\begin{columns}[T]
 \column{0.5\textwidth}
 """
-                # Add image
+                # Bullet points
+                latex += "\\begin{itemize}\n"
+                for point in points:
+                    latex += f"\\item {self._escape_latex(point)}\n"
+                latex += "\\end{itemize}\n\n"
+                
+                # Image column
+                latex += r"""\column{0.5\textwidth}
+"""
                 latex += f"""\\begin{{figure}}
 \\centering
 \\includegraphics[width=\\textwidth]{{{image_url}}}
 \\end{{figure}}
 
-\\column{{0.5\\textwidth}}
+\\end{{columns}}
 """
-                # Add bullet points
-                if points:
-                    latex += "\\begin{itemize}\n"
-                    for point in points:
-                        latex += f"\\item {self._escape_latex(point)}\n"
-                    latex += "\\end{itemize}\n"
-                
-                latex += "\\end{columns}\n"
                 
             elif image_url:
                 # Image only
                 latex += f"""\\begin{{figure}}
 \\centering
-\\includegraphics[width=0.8\\textwidth]{{{image_url}}}
+\\includegraphics[width=0.7\\textwidth]{{{image_url}}}
 \\end{{figure}}
 """
             elif points:
@@ -354,7 +373,6 @@ For each slide, suggest a relevant image search query.
         if not text:
             return ""
         
-        # Replace special characters
         replacements = {
             '&': r'\&',
             '%': r'\%',

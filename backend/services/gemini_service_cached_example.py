@@ -214,7 +214,7 @@ CITATION INSTRUCTIONS:
         )
         
         try:
-            model_name = 'gemini-2.0-flash-exp'
+            model_name = 'gemini-1.5-flash'
             
             # Generate content using cached system prompt
             if cached_prompt_name:

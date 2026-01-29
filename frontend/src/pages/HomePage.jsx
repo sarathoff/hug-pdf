@@ -17,6 +17,7 @@ const HomePage = () => {
   const [pptInputMode, setPptInputMode] = useState('topic'); // 'topic' or 'content'
   const [pptTopic, setPptTopic] = useState('');
   const [pptContent, setPptContent] = useState('');
+  const [pptStyle, setPptStyle] = useState('minimal');
 
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showResumeOptimizerModal, setShowResumeOptimizerModal] = useState(false);
@@ -73,7 +74,8 @@ const HomePage = () => {
                     topic: pptInputMode === 'topic' ? pptTopic : null,
                     content: pptInputMode === 'content' ? pptContent : null,
                     numSlides: 10,
-                    style: 'minimal'
+                    numSlides: 10,
+                    style: pptStyle
                 }
             } 
         });
@@ -171,22 +173,7 @@ const HomePage = () => {
             stunning professional PDFs tailored to your needs.
           </p>
 
-          {/* Product Hunt Badge */}
-          <div className="flex justify-center mt-6">
-            <a
-              href="https://www.producthunt.com/products/hugpdf?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hugpdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="transition-transform hover:scale-105 duration-200"
-            >
-              <img
-                alt="HugPDF - Create Beautiful PDFs Using AI - Chat and Create PDFs | Product Hunt"
-                width="250"
-                height="54"
-                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1064053&theme=light&t=1768729447472"
-              />
-            </a>
-          </div>
+          {/* Product Hunt Badge Removed */}
         </div>
 
         {/* Main Input */}

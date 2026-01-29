@@ -36,6 +36,7 @@ import {
     ChevronLeft,
     RefreshCw,
     Image as ImageIcon,
+    Paperclip,
     FileText,
     Search,
     Book,
@@ -82,6 +83,11 @@ const EditorPage = () => {
     const [pptGenerating, setPptGenerating] = useState(false);
     const [currentSlide, setCurrentSlide] = useState(1);
     const [totalSlides, setTotalSlides] = useState(0);
+
+    // Image Upload State
+    const [attachedFile, setAttachedFile] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef(null);
 
     // Refs for preventing double-firing
     const initialized = useRef(false);
@@ -184,6 +190,50 @@ const EditorPage = () => {
         }
         
         setMode(newMode);
+    };
+
+    // Handle File Upload
+    const handleFileUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Reset input for next selection
+        event.target.value = null;
+
+        if (!user) {
+            navigate('/auth');
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const headers = token ? { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+            } : { 'Content-Type': 'multipart/form-data' };
+
+            const response = await axios.post(`${API}/upload-image`, formData, { headers });
+            
+            setAttachedFile({
+                url: response.data.url,
+                filename: file.name
+            });
+            
+            // Inform user visually (toast or just state update)
+            console.log('File uploaded:', response.data.url);
+        } catch (error) {
+            console.error('Upload failed:', error);
+            alert('Failed to upload image. Please try again.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const clearAttachment = () => {
+        setAttachedFile(null);
     };
 
     // Initial Generation
@@ -365,10 +415,19 @@ const EditorPage = () => {
 
         try {
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            
+            // Prepare message with attachment context if present
+            let finalMessage = userMessage;
+            if (attachedFile) {
+                finalMessage += `\n[Attached Image: ${attachedFile.url}]`;
+                setAttachedFile(null); // Clear after sending
+            }
+
             const response = await axios.post(`${API}/chat`, {
                 session_id: sessionId,
-                message: userMessage,
+                message: finalMessage,
                 current_html: htmlContent,
+                current_latex: latexContent,  // Pass LaTeX for PPT modifications
                 mode: mode
             }, { headers });
 
@@ -782,6 +841,20 @@ const EditorPage = () => {
                         {/* Mode Selector */}
                         <div className="mb-3">
                             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none mask-fade-right">
+                                {/* Attached File Preview */}
+                                {attachedFile && (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100 flex-shrink-0 animate-in fade-in slide-in-from-bottom-2">
+                                        <Paperclip className="w-3 h-3" />
+                                        <span className="max-w-[100px] truncate">{attachedFile.filename}</span>
+                                        <button 
+                                            onClick={clearAttachment}
+                                            className="ml-1 p-0.5 hover:bg-blue-100 rounded-full"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                )}
+                                
                                 <button
                                     onClick={() => handleModeChange('normal')}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'normal'
@@ -902,7 +975,37 @@ const EditorPage = () => {
                                 Insert Image
                             </Button>
                         </div>
+                        {/* Hidden File Input */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileUpload}
+                            accept="image/png, image/jpeg, image/jpg, image/webp"
+                            className="hidden"
+                        />
                         <div className="relative flex items-end gap-2 bg-gray-50 rounded-xl p-2 border border-gray-200 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                             {/* Attach Button */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={`h-10 w-10 shrink-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50 ${attachedFile ? 'text-blue-600 bg-blue-50' : ''}`}
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={loading || isUploading}
+                                        >
+                                            {isUploading ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                            ) : (
+                                                <Paperclip className="w-5 h-5" />
+                                            )}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Attach Image</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
                             <Textarea
                                 placeholder="Describe changes..."
                                 value={input}

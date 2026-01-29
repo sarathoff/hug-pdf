@@ -1,6 +1,7 @@
 import os
 import logging
 from typing import Dict, Optional
+from backend.core.config import settings
 from services.gemini_service import GeminiService
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class ResumeOptimizerService:
             
             # Generate optimized resume using Gemini
             response = self.gemini_service.client.models.generate_content(
-                model='gemini-2.0-flash-exp',
+                model=settings.GEMINI_MODEL_STARTER,
                 contents=prompt
             )
             
