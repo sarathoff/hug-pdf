@@ -32,16 +32,16 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy the requirements file into the container at /app
-COPY requirements.txt .
+COPY requirements.txt ./requirements.txt
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
-COPY . .
+# Copy the backend code to /app/backend to preserve module structure
+COPY . ./backend
 
 # Expose port 8000
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application from /app with backend.server module path
+CMD ["uvicorn", "backend.server:app", "--host", "0.0.0.0", "--port", "8000"]
