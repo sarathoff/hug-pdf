@@ -21,7 +21,7 @@ services:
       pip install --upgrade pip
       pip install -r requirements.txt
       echo "=== Build complete ==="
-    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn backend.server:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

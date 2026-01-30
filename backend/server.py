@@ -26,17 +26,17 @@ from backend.schemas.ai import (
     GeneratePPTRequest, GeneratePPTResponse,
     DownloadPDFRequest # Legacy support if needed
 )
-from models.user import UserResponse
+from backend.models.user import UserResponse
 
 # Services
-from services.payment_service import PaymentService
-from services.pexels_service import PexelsService
+from backend.services.payment_service import PaymentService
+from backend.services.pexels_service import PexelsService
 # Removed RephrasyService
-from services.content_converter_service import ContentConverterService
-from services.pdf_extractor_service import PDFExtractorService
-from services.resume_optimizer_service import ResumeOptimizerService
-from services.ppt_generator_service import PPTGeneratorService
-from services.gemini_service import GeminiService # For PPT service init
+from backend.services.content_converter_service import ContentConverterService
+from backend.services.pdf_extractor_service import PDFExtractorService
+from backend.services.resume_optimizer_service import ResumeOptimizerService
+from backend.services.ppt_generator_service import PPTGeneratorService
+from backend.services.gemini_service import GeminiService # For PPT service init
 
 # Initialize Logging
 if not logging.getLogger().handlers:
