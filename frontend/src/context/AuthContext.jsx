@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import axios from 'axios';
 
@@ -140,7 +140,7 @@ export const AuthProvider = ({ children }) => {
               plan: 'free',
               loading: true
             });
-            
+
             const userData = await syncUserToBackend(session.user);
             if (isMounted && userData) {
               setUser(userData);
@@ -324,7 +324,8 @@ export const AuthProvider = ({ children }) => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [session, syncUserToBackend]);
 
-  const register = async (email, password) => {
+  // ⚡ Bolt: Memoize these functions to prevent unnecessary re-renders in consumers
+  const register = useCallback(async (email, password) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -335,9 +336,9 @@ export const AuthProvider = ({ children }) => {
 
     if (error) throw error;
     return data;
-  };
+  }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -345,9 +346,9 @@ export const AuthProvider = ({ children }) => {
 
     if (error) throw error;
     return data;
-  };
+  }, []);
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = useCallback(async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -361,7 +362,7 @@ export const AuthProvider = ({ children }) => {
 
     if (error) throw error;
     return data;
-  };
+  }, []);
 
   const logout = useCallback(async () => {
     console.log('👋 Logging out user...');
@@ -378,7 +379,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       if (!currentSession?.access_token) {
@@ -399,9 +400,9 @@ export const AuthProvider = ({ children }) => {
       console.error('Failed to refresh user:', error);
       // Don't logout on refresh failure - just log the error
     }
-  };
+  }, []);
 
-  const getToken = async () => {
+  const getToken = useCallback(async () => {
     try {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       return currentSession?.access_token || null;
@@ -409,23 +410,34 @@ export const AuthProvider = ({ children }) => {
       console.error('Error getting token:', error);
       return null;
     }
-  };
+  }, []);
+
+  // ⚡ Bolt: Memoize context value to ensure referential stability
+  const value = useMemo(() => ({
+    user,
+    session,
+    token: session?.access_token,
+    loading,
+    register,
+    login,
+    loginWithGoogle,
+    logout,
+    refreshUser,
+    getToken,
+  }), [
+    user,
+    session,
+    loading,
+    register,
+    login,
+    loginWithGoogle,
+    logout,
+    refreshUser,
+    getToken
+  ]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        token: session?.access_token,
-        loading,
-        register,
-        login,
-        loginWithGoogle,
-        logout,
-        refreshUser,
-        getToken,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
