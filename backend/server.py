@@ -129,9 +129,16 @@ async def get_curated_images(per_page: int = 15, page: int = 1):
 @api_router.post("/upload-image")
 async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     try:
+        # Security: Validate file extension
+        allowed_extensions = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+        filename = file.filename or "image.jpg"
+        file_ext = filename.split('.')[-1].lower() if '.' in filename else ''
+
+        if file_ext not in allowed_extensions:
+             raise HTTPException(status_code=400, detail="Invalid file type. Allowed: jpg, jpeg, png, webp, gif")
+
         temp_dir = ROOT_DIR / "temp_uploads"
         temp_dir.mkdir(exist_ok=True)
-        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
         unique_name = f"{uuid.uuid4()}.{file_ext}"
         filepath = temp_dir / unique_name
         content = await file.read()
@@ -139,12 +146,20 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
             f.write(content)
         backend_url = os.environ.get('BACKEND_URL', 'http://localhost:8000')
         return {"url": f"{backend_url}/api/temp-images/{unique_name}", "filename": file.filename}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/temp-images/{filename}")
 async def serve_temp_image(filename: str):
-    filepath = ROOT_DIR / "temp_uploads" / filename
+    # Security: Prevent path traversal
+    temp_dir = (ROOT_DIR / "temp_uploads").resolve()
+    filepath = (temp_dir / filename).resolve()
+
+    if not filepath.is_relative_to(temp_dir):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(filepath)
