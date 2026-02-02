@@ -1,0 +1,3 @@
+## 2024-05-23 - Async Wrapper for Legacy Sync Services
+**Learning:** Legacy synchronous services (like `PexelsService` using `requests`) blocking the main Event Loop when called from FastAPI async endpoints. Using `asyncio.gather` on these calls resulted in sequential execution despite the intention of parallelism.
+**Action:** Implement the "Sync/Async Wrapper" pattern: Rename original sync method to `*_sync`, create new `async` method that wraps it with `asyncio.to_thread`. This allows legacy sync consumers to use `*_sync` and new async consumers (like FastAPI) to use `await service.method()` for true concurrency.

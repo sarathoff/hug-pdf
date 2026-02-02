@@ -36,7 +36,7 @@ class GeminiService:
         try:
             if mode == 'ebook':
                 logger.info("Fetching relevant images for E-book Mode...")
-                pexels_result = self.pexels_service.search_images(prompt[:50], per_page=3)
+                pexels_result = self.pexels_service.search_images_sync(prompt[:50], per_page=3)
                 if pexels_result and 'photos' in pexels_result:
                     image_urls = [photo['src']['large'] for photo in pexels_result['photos']]
                     if image_urls:
@@ -47,7 +47,7 @@ class GeminiService:
             
             elif mode == 'research' and citations:
                 logger.info("Fetching relevant images for Research Mode...")
-                pexels_result = self.pexels_service.search_images(prompt[:50], per_page=2)
+                pexels_result = self.pexels_service.search_images_sync(prompt[:50], per_page=2)
                 if pexels_result and 'photos' in pexels_result:
                     image_urls = [photo['src']['large'] for photo in pexels_result['photos']]
                     if image_urls:
@@ -58,7 +58,7 @@ class GeminiService:
                         
             elif mode == 'normal':
                 logger.info("Fetching relevant image for Normal Mode...")
-                pexels_result = self.pexels_service.search_images(prompt[:50], per_page=1)
+                pexels_result = self.pexels_service.search_images_sync(prompt[:50], per_page=1)
                 if pexels_result and 'photos' in pexels_result:
                     if pexels_result['photos']:
                         url = pexels_result['photos'][0]['src']['large']
