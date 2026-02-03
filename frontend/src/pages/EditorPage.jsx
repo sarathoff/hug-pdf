@@ -762,7 +762,7 @@ const EditorPage = () => {
         <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
             {/* Mobile Header - Always visible on mobile */}
             <div className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-white z-20 shadow-sm flex-shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2" aria-label="Back to home">
                     <ChevronLeft className="h-5 w-5 mr-1" />
                 </Button>
 
@@ -793,7 +793,7 @@ const EditorPage = () => {
 
                     {/* Desktop Header */}
                     <div className="hidden md:flex p-4 border-b bg-white items-center justify-between shadow-sm z-10 flex-shrink-0">
-                        <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8">
+                        <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8" aria-label="Back to home">
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
                         <span className="font-semibold text-sm">Editor</span>
@@ -857,6 +857,7 @@ const EditorPage = () => {
                                 
                                 <button
                                     onClick={() => handleModeChange('normal')}
+                                    aria-pressed={mode === 'normal'}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'normal'
                                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -867,6 +868,7 @@ const EditorPage = () => {
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('ppt')}
+                                    aria-pressed={mode === 'ppt'}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'ppt'
                                         ? 'bg-orange-600 text-white border-orange-600 shadow-sm'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -877,6 +879,7 @@ const EditorPage = () => {
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('research')}
+                                    aria-pressed={mode === 'research'}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'research'
                                         ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -888,6 +891,7 @@ const EditorPage = () => {
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('ebook')}
+                                    aria-pressed={mode === 'ebook'}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'ebook'
                                         ? 'bg-green-600 text-white border-green-600 shadow-sm'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -1023,8 +1027,9 @@ const EditorPage = () => {
                                 className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                                 onClick={handleSendMessage}
                                 disabled={!input.trim() || loading || !sessionId}
+                                aria-label="Send message"
                             >
-                                <Send className="h-4 w-4" />
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                             </Button>
                         </div>
                     </div>
@@ -1067,6 +1072,7 @@ const EditorPage = () => {
                                             if (htmlContent) generatePreview(htmlContent);
                                         }}
                                         disabled={previewLoading || !htmlContent}
+                                        aria-label="Refresh Preview"
                                     >
                                         <Sparkles className="w-4 h-4 md:mr-1" />
                                         <span className="hidden md:inline">Refresh Preview</span>
