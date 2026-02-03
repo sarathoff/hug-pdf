@@ -128,10 +128,15 @@ async def get_curated_images(per_page: int = 15, page: int = 1):
 
 @api_router.post("/upload-image")
 async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    # Security: Validate file extension
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'webp'}
+    file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Invalid file type. Only images are allowed.")
+
     try:
         temp_dir = ROOT_DIR / "temp_uploads"
         temp_dir.mkdir(exist_ok=True)
-        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
         unique_name = f"{uuid.uuid4()}.{file_ext}"
         filepath = temp_dir / unique_name
         content = await file.read()
@@ -144,7 +149,15 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
 
 @api_router.get("/temp-images/{filename}")
 async def serve_temp_image(filename: str):
-    filepath = ROOT_DIR / "temp_uploads" / filename
+    # Security: Prevent path traversal
+    safe_filename = os.path.basename(filename)
+    base_dir = (ROOT_DIR / "temp_uploads").resolve()
+    filepath = (base_dir / safe_filename).resolve()
+
+    # Verify the file is actually inside the temp_uploads directory
+    if not filepath.is_relative_to(base_dir):
+        raise HTTPException(status_code=403, detail="Access denied")
+
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(filepath)
