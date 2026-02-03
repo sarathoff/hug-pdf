@@ -124,6 +124,7 @@ const EditorPage = () => {
     const initialPrompt = location.state?.initialPrompt;
     const pptConfig = location.state?.pptConfig;
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         // CHECK FOR NEW INTENT:
         // If we have fresh content/prompt/config from navigation (Homepage), 
@@ -157,7 +158,7 @@ const EditorPage = () => {
             if (savedLatex) setLatexContent(savedLatex);
             if (savedMode) setMode(savedMode);
         }
-    }, [user, initialLatex, skipGeneration, initialPrompt, pptConfig]);
+    }, []); // Run only once on mount - DO NOT add dependencies mount
 
     // Save state to localStorage whenever it changes
     useEffect(() => {

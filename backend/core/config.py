@@ -33,10 +33,10 @@ class Settings:
     SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     
     # Models
+    # Using stable, production-ready models
     # Updated based on user request and available models
-    GEMINI_MODEL_STARTER: str = "gemini-3-flash-preview" 
+    GEMINI_MODEL_STARTER: str = "gemini-2.5-pro" 
     GEMINI_MODEL_PRO: str = "gemini-2.5-pro"
-    
     # Paths
     BACKEND_DIR = ROOT_DIR / "backend"
     TEMP_UPLOADS_DIR = BACKEND_DIR / "temp_uploads"

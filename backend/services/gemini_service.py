@@ -88,39 +88,42 @@ class GeminiService:
                 citations_list = "\\n".join([f"[{i+1}] {cite}" for i, cite in enumerate(citations)])
                 citations_section = f"AVAILABLE CITATIONS:\n{citations_list}\n"
 
-        # 3. Select System Prompt
+        # Select prompt based on mode
         if mode == 'ebook':
             system_prompt = latex_prompts.EBOOK_SYSTEM_PROMPT.format(
                 base_instructions=latex_prompts.BASE_INSTRUCTIONS,
-                images_section=images_section,
-                prompt=prompt
+                prompt=prompt,
+                images_section=images_section
             )
         elif mode == 'research':
             system_prompt = latex_prompts.RESEARCH_SYSTEM_PROMPT.format(
                 base_instructions=latex_prompts.BASE_INSTRUCTIONS,
+                prompt=prompt,
                 research_section=research_section,
                 citations_section=citations_section,
-                prompt=prompt
+                images_section=images_section
             )
-        else:
-            system_prompt = latex_prompts.NORMAL_SYSTEM_PROMPT.format(
+        else:  # normal mode
+            system_prompt = latex_prompts.SYSTEM_PROMPT.format(
                 base_instructions=latex_prompts.BASE_INSTRUCTIONS,
-                images_section=images_section,
-                prompt=prompt
+                prompt=prompt,
+                images_section=images_section
             )
 
         try:
             # Model Selection with Fallback
             model_name = settings.GEMINI_MODEL_STARTER if tier == 'starter' else settings.GEMINI_MODEL_PRO
             
-            # Cache Strategy
+            # Cache Strategy - TEMPORARILY DISABLED for stability
+            # TODO: Re-enable after verifying model compatibility
             cache_key = f"{mode}_{tier}_{self.CACHE_VERSION}"
-            cached_prompt_name = self.cache_service.get_or_create_cache(
-                cache_key=cache_key,
-                system_instruction=system_prompt,
-                model=model_name, # Pass correct model
-                ttl_seconds=3600
-            )
+            # cached_prompt_name = self.cache_service.get_or_create_cache(
+            #     cache_key=cache_key,
+            #     system_instruction=system_prompt,
+            #     model=model_name,
+            #     ttl_seconds=3600
+            # )
+            cached_prompt_name = None  # Disable caching for now
             
             generate_config = None
             if cached_prompt_name:

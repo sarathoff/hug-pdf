@@ -73,9 +73,9 @@ class CacheService:
             # The SDK expects 'config' for contents in some versions, or direct arguments
             # We will use the standard pattern for v0.1+
             
-            # Use a supported model for caching (Flash 1.5 is good)
-            if 'exp' in model:
-                model = 'gemini-1.5-flash-002' # Fallback to a stable model that supports caching
+            # Use a supported model for caching
+            # gemini-2.0-flash-exp and gemini-1.5-flash both support caching
+            # No fallback needed - use the model as provided
             
             # Construct the cache config
             # Note: create() signature depends on the exact SDK version.

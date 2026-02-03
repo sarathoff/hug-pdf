@@ -22,12 +22,20 @@ class CreditService:
     
     # Plan configurations
     PLAN_LIMITS = {
+        'free': {
+            'research_credits': 0,
+            'diagram_credits': 0,
+            'ebook_credits': 0,
+            'pdf_limit': 5,  # 5 free PDFs
+            'model': 'gemini-2.5-pro',
+            'perplexity_enabled': False
+        },
         'starter': {
             'research_credits': 2,
             'diagram_credits': 5,
             'ebook_credits': 0,
             'pdf_limit': 100,
-            'model': 'gemini-1.5-flash-8b',
+            'model': 'gemini-2.5-pro',
             'perplexity_enabled': False  # Use Google Search instead
         },
         'pro': {
@@ -35,7 +43,7 @@ class CreditService:
             'diagram_credits': 25,
             'ebook_credits': 2,
             'pdf_limit': -1,  # Unlimited
-            'model': 'gemini-1.5-flash',
+            'model': 'gemini-2.5-pro',
             'perplexity_enabled': True
         },
         'power': {
@@ -43,7 +51,7 @@ class CreditService:
             'diagram_credits': -1,  # Unlimited
             'ebook_credits': 10,
             'pdf_limit': -1,  # Unlimited
-            'model': 'gemini-1.5-flash',
+            'model': 'gemini-2.5-pro',
             'perplexity_enabled': True
         }
     }
