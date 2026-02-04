@@ -1,6 +1,7 @@
 import os
 import logging
 import requests
+import asyncio
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -107,3 +108,11 @@ class PexelsService:
         except Exception as e:
             logger.error(f"Error getting curated images: {str(e)}")
             return None
+
+    async def search_images_async(self, query: str, per_page: int = 15, page: int = 1) -> Optional[Dict]:
+        """Async wrapper for search_images"""
+        return await asyncio.to_thread(self.search_images, query, per_page, page)
+
+    async def get_curated_images_async(self, per_page: int = 15, page: int = 1) -> Optional[Dict]:
+        """Async wrapper for get_curated_images"""
+        return await asyncio.to_thread(self.get_curated_images, per_page, page)

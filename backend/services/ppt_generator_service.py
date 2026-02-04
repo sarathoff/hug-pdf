@@ -194,7 +194,7 @@ For each slide, suggest a relevant image search query.
         async def fetch_one(slide):
             if 'image_query' in slide and slide['image_query']:
                 try:
-                    result = self.pexels_service.search_images(
+                    result = await self.pexels_service.search_images_async(
                         query=slide['image_query'],
                         per_page=1
                     )

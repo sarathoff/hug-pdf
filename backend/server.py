@@ -115,14 +115,14 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 @api_router.get("/images/search")
 async def search_images(query: str, per_page: int = 15, page: int = 1):
     try:
-        return pexels_service.search_images(query, per_page, page)
+        return await pexels_service.search_images_async(query, per_page, page)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/images/curated")
 async def get_curated_images(per_page: int = 15, page: int = 1):
     try:
-        return pexels_service.get_curated_images(per_page, page)
+        return await pexels_service.get_curated_images_async(per_page, page)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
