@@ -77,7 +77,7 @@ const EditorPage = () => {
     const [aiDetectionResult, setAiDetectionResult] = useState(null);
     const [atsScore, setAtsScore] = useState(null);
     const [improvements, setImprovements] = useState([]);
-    
+
     // PPT-specific state
     const [showPPTSetupModal, setShowPPTSetupModal] = useState(false);
     const [pptGenerating, setPptGenerating] = useState(false);
@@ -127,11 +127,11 @@ const EditorPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         // CHECK FOR NEW INTENT:
-        // If we have fresh content/prompt/config from navigation (Homepage), 
+        // If we have fresh content/prompt/config from navigation (Homepage),
         // we should START FRESH and ignore/clear any old session.
-        const isNewSession = 
-            (initialLatex && skipGeneration) || 
-            (initialPrompt) || 
+        const isNewSession =
+            (initialLatex && skipGeneration) ||
+            (initialPrompt) ||
             (pptConfig);
 
         if (isNewSession) {
@@ -143,7 +143,7 @@ const EditorPage = () => {
             localStorage.removeItem('hugpdf_mode');
             return;
         }
-        
+
         const savedSessionId = localStorage.getItem('hugpdf_sessionId');
         const savedMessages = localStorage.getItem('hugpdf_messages');
         const savedHtml = localStorage.getItem('hugpdf_htmlContent');
@@ -182,14 +182,14 @@ const EditorPage = () => {
                 return;
             }
         }
-        
+
         // If PPT mode, show setup modal (no Pro required)
         if (newMode === 'ppt') {
             setMode(newMode);
             setShowPPTSetupModal(true);
             return;
         }
-        
+
         setMode(newMode);
     };
 
@@ -211,18 +211,18 @@ const EditorPage = () => {
             const formData = new FormData();
             formData.append('file', file);
 
-            const headers = token ? { 
+            const headers = token ? {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'multipart/form-data'
             } : { 'Content-Type': 'multipart/form-data' };
 
             const response = await axios.post(`${API}/upload-image`, formData, { headers });
-            
+
             setAttachedFile({
                 url: response.data.url,
                 filename: file.name
             });
-            
+
             // Inform user visually (toast or just state update)
             console.log('File uploaded:', response.data.url);
         } catch (error) {
@@ -310,13 +310,13 @@ const EditorPage = () => {
         const initialPrompt = location.state?.initialPrompt;
         const initialLatex = location.state?.initialLatex;
         const skipGeneration = location.state?.skipGeneration;
-        
+
         // Handle pre-generated content (from web converter, resume optimizer, etc.)
         if (initialLatex && skipGeneration && !initialized.current) {
             initialized.current = true;
             setLatexContent(initialLatex);
             setHtmlContent(initialLatex);
-            
+
             // Set ATS score and improvements if available (from resume optimizer)
             if (location.state?.atsScore) {
                 setAtsScore(location.state.atsScore);
@@ -324,7 +324,7 @@ const EditorPage = () => {
             if (location.state?.improvements) {
                 setImprovements(location.state.improvements);
             }
-            
+
             setMessages([
                 { role: 'assistant', content: 'Your PDF has been generated successfully!' }
             ]);
@@ -416,7 +416,7 @@ const EditorPage = () => {
 
         try {
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            
+
             // Prepare message with attachment context if present
             let finalMessage = userMessage;
             if (attachedFile) {
@@ -541,9 +541,9 @@ const EditorPage = () => {
                 ...prev,
                 { role: 'user', content: pptData.topic ? `Create presentation about: ${pptData.topic}` : 'Create presentation from my content' }
             ]);
-            
+
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            
+
             const response = await axios.post(
                 `${API}/generate-ppt`,
                 {
@@ -554,43 +554,43 @@ const EditorPage = () => {
                 },
                 { headers }
             );
-            
+
             // Set the generated LaTeX content
             setLatexContent(response.data.latex_content);
             setTotalSlides(response.data.slide_count);
             setCurrentSlide(1);
-            
+
             // Set session ID for continued chat about this PPT
             if (response.data.session_id) {
                 setSessionId(response.data.session_id);
                 console.log("PPT Session ID set:", response.data.session_id);
             }
-            
+
             // Add success message to chat
             // Add success message to chat
             setMessages(prev => [
                 ...prev,
                 { role: 'assistant', content: response.data.message }
             ]);
-            
+
             // Switch to preview tab and generate preview
             setActiveTab('preview');
             // Explicitly trigger preview generation with the new content
             if (response.data.latex_content) {
                 setTimeout(() => generatePreview(response.data.latex_content), 100);
             }
-            
+
             // Refresh user credits
             if (refreshUser) {
                 refreshUser().catch(console.error);
             }
-            
+
             setPptGenerating(false);
-            
+
         } catch (error) {
             console.error('PPT generation error:', error);
             setPptGenerating(false);
-            
+
             if (error.response?.status === 402) {
                 // PPT limit reached - show specific message, not generic upgrade modal
                 alert(error.response?.data?.detail || "You've used all 3 free PPT generations this month. Upgrade to Pro for unlimited presentations!");
@@ -763,7 +763,7 @@ const EditorPage = () => {
         <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
             {/* Mobile Header - Always visible on mobile */}
             <div className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-white z-20 shadow-sm flex-shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="-ml-2" aria-label="Go back">
                     <ChevronLeft className="h-5 w-5 mr-1" />
                 </Button>
 
@@ -789,12 +789,12 @@ const EditorPage = () => {
             {/* Main Content Area - Desktop: side-by-side, Mobile: stacked with tabs */}
             <div className="flex-1 flex flex-col md:flex-row overflow-auto md:overflow-hidden">
                 {/* Sidebar / Chat Panel */}
-                <div className={`w-full md:w-1/3 lg:w-[400px] flex flex-col border-r bg-gray-50/50 backdrop-blur-sm 
+                <div className={`w-full md:w-1/3 lg:w-[400px] flex flex-col border-r bg-gray-50/50 backdrop-blur-sm
                     ${activeTab === 'chat' ? 'flex min-h-[calc(100vh-120px)]' : 'hidden md:flex'}`}>
 
                     {/* Desktop Header */}
                     <div className="hidden md:flex p-4 border-b bg-white items-center justify-between shadow-sm z-10 flex-shrink-0">
-                        <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8">
+                        <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8" aria-label="Go back">
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
                         <span className="font-semibold text-sm">Editor</span>
@@ -847,17 +847,19 @@ const EditorPage = () => {
                                     <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100 flex-shrink-0 animate-in fade-in slide-in-from-bottom-2">
                                         <Paperclip className="w-3 h-3" />
                                         <span className="max-w-[100px] truncate">{attachedFile.filename}</span>
-                                        <button 
+                                        <button
                                             onClick={clearAttachment}
                                             className="ml-1 p-0.5 hover:bg-blue-100 rounded-full"
+                                            aria-label="Remove attachment"
                                         >
                                             <X className="w-3 h-3" />
                                         </button>
                                     </div>
                                 )}
-                                
+
                                 <button
                                     onClick={() => handleModeChange('normal')}
+                                    aria-pressed={mode === 'normal'}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'normal'
                                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -868,6 +870,7 @@ const EditorPage = () => {
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('ppt')}
+                                    aria-pressed={mode === 'ppt'}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'ppt'
                                         ? 'bg-orange-600 text-white border-orange-600 shadow-sm'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -878,6 +881,7 @@ const EditorPage = () => {
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('research')}
+                                    aria-pressed={mode === 'research'}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'research'
                                         ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -889,6 +893,7 @@ const EditorPage = () => {
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('ebook')}
+                                    aria-pressed={mode === 'ebook'}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${mode === 'ebook'
                                         ? 'bg-green-600 text-white border-green-600 shadow-sm'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -1024,6 +1029,7 @@ const EditorPage = () => {
                                 className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                                 onClick={handleSendMessage}
                                 disabled={!input.trim() || loading || !sessionId}
+                                aria-label="Send message"
                             >
                                 <Send className="h-4 w-4" />
                             </Button>
@@ -1032,7 +1038,7 @@ const EditorPage = () => {
                 </div>
 
                 {/* Preview Panel */}
-                <div className={`flex-1 flex flex-col bg-gray-100 ${isFullscreen ? 'fixed inset-0 z-50' : 'relative h-full'} 
+                <div className={`flex-1 flex flex-col bg-gray-100 ${isFullscreen ? 'fixed inset-0 z-50' : 'relative h-full'}
                 ${(activeTab === 'preview' || activeTab === 'code') ? 'flex' : 'hidden md:flex'}`}>
 
                     {/* Toolbar */}
@@ -1068,6 +1074,7 @@ const EditorPage = () => {
                                             if (htmlContent) generatePreview(htmlContent);
                                         }}
                                         disabled={previewLoading || !htmlContent}
+                                        aria-label="Refresh preview"
                                     >
                                         <Sparkles className="w-4 h-4 md:mr-1" />
                                         <span className="hidden md:inline">Refresh Preview</span>
@@ -1155,6 +1162,7 @@ const EditorPage = () => {
                         <button
                             onClick={() => setShowUpgradeModal(false)}
                             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                            aria-label="Close modal"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -1220,13 +1228,13 @@ const EditorPage = () => {
                     try {
                         setShowImagePicker(false);
                         setLoading(true);
-                        
+
                         // Send image insertion request directly to backend without showing URL
                         const imagePrompt = `Insert this image: ${imageData.url}`;
-                        
+
                         // Add a hidden system message (not shown to user)
                         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-                        
+
                         const response = await axios.post(
                             `${API}/modify-latex`,
                             {
@@ -1254,17 +1262,17 @@ const EditorPage = () => {
                         ]);
 
                         setLoading(false);
-                        
+
                         // Refresh user credits
                         if (refreshUser) refreshUser().catch(console.error);
-                        
+
                     } catch (error) {
                         setLoading(false);
                         console.error('Error inserting image:', error);
                         const errorMsg = error.response?.status === 402
                             ? 'Insufficient credits. Please upgrade to continue.'
                             : 'Failed to insert image. Please try again.';
-                        
+
                         setMessages((prev) => [
                             ...prev,
                             { role: 'assistant', content: errorMsg }
@@ -1295,6 +1303,7 @@ const EditorPage = () => {
                                         setMode('normal');
                                     }}
                                     className="text-gray-400 hover:text-gray-600 transition-colors"
+                                    aria-label="Close modal"
                                 >
                                     <X className="w-6 h-6" />
                                 </button>
