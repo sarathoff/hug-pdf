@@ -128,10 +128,19 @@ async def get_curated_images(per_page: int = 15, page: int = 1):
 
 @api_router.post("/upload-image")
 async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    # Security: Validate file extension and MIME type
+    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+    file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: jpg, jpeg, png, gif, webp")
+
+    if file.content_type not in ["image/jpeg", "image/png", "image/gif", "image/webp"]:
+         raise HTTPException(status_code=400, detail="Invalid content type")
+
     try:
         temp_dir = ROOT_DIR / "temp_uploads"
         temp_dir.mkdir(exist_ok=True)
-        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
         unique_name = f"{uuid.uuid4()}.{file_ext}"
         filepath = temp_dir / unique_name
         content = await file.read()
@@ -144,7 +153,20 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
 
 @api_router.get("/temp-images/{filename}")
 async def serve_temp_image(filename: str):
-    filepath = ROOT_DIR / "temp_uploads" / filename
+    # Security: Use basename to prevent path traversal
+    safe_filename = os.path.basename(filename)
+    filepath = ROOT_DIR / "temp_uploads" / safe_filename
+
+    # Additional security: Resolve path and check if it's relative to temp_uploads
+    try:
+        resolved_path = filepath.resolve()
+        temp_dir_resolved = (ROOT_DIR / "temp_uploads").resolve()
+        if not resolved_path.is_relative_to(temp_dir_resolved):
+             raise HTTPException(status_code=404, detail="Image not found")
+    except Exception:
+        # If resolution fails or path is invalid
+        raise HTTPException(status_code=404, detail="Image not found")
+
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(filepath)
