@@ -93,6 +93,7 @@ const EditorPage = () => {
     const initialized = useRef(false);
     const messagesEndRef = useRef(null);
     const previewTimeoutRef = useRef(null);
+    const lastGeneratedContent = useRef(null);
 
     // Auto-scroll to bottom of chat
     const scrollToBottom = useCallback(() => {
@@ -377,24 +378,19 @@ const EditorPage = () => {
         }, 2000);
     }, []);
 
+    // Unified preview generation effect
     useEffect(() => {
-        // Generate preview when switching to preview tab
         const contentToPreview = latexContent || htmlContent;
-        if (activeTab === 'preview' && contentToPreview && !pdfPreviewUrl) {
-            generatePreview(contentToPreview);
+        if (activeTab === 'preview' && contentToPreview) {
+            // Generate if we have no URL (first load/refresh) or if content changed
+            // We use a ref to track the last content we requested generation for
+            // to avoid regenerating on tab switches if content hasn't changed.
+            if (!pdfPreviewUrl || contentToPreview !== lastGeneratedContent.current) {
+                generatePreview(contentToPreview);
+                lastGeneratedContent.current = contentToPreview;
+            }
         }
     }, [activeTab, htmlContent, latexContent, pdfPreviewUrl, generatePreview]);
-    // Auto-refresh preview when content changes
-    // Auto-refresh preview when content changes
-    useEffect(() => {
-        const contentToPreview = latexContent || htmlContent;
-        if (contentToPreview && activeTab === 'preview') {
-            // Only refresh if content changed (simple check)
-            // Note: This might trigger on every render if we don't track prev, but debouncing helps
-            setPdfPreviewUrl(null);
-            generatePreview(contentToPreview);
-        }
-    }, [htmlContent, latexContent, activeTab, generatePreview]);
 
 
     // Cleanup
