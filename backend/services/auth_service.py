@@ -9,7 +9,12 @@ import requests
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
+JWT_SECRET = os.environ.get('JWT_SECRET')
+if not JWT_SECRET:
+    logger.warning("SECURITY WARNING: JWT_SECRET not set in environment. Generating a random secret. Existing sessions will be invalidated on restart.")
+    import secrets
+    JWT_SECRET = secrets.token_urlsafe(32)
+
 JWT_ALGORITHM = 'HS256'
 
 class AuthService:
