@@ -129,24 +129,52 @@ async def get_curated_images(per_page: int = 15, page: int = 1):
 @api_router.post("/upload-image")
 async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     try:
+        # Security: Validate file type and extension
+        ALLOWED_MIMES = {'image/jpeg', 'image/png', 'image/webp', 'image/jpg'}
+        ALLOWED_EXTS = {'jpg', 'jpeg', 'png', 'webp'}
+
+        # Check MIME type (trusting header, but better than nothing)
+        if file.content_type not in ALLOWED_MIMES:
+            raise HTTPException(status_code=400, detail="Invalid file type. Only images are allowed.")
+
+        # Check extension
+        file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+        if file_ext not in ALLOWED_EXTS:
+             raise HTTPException(status_code=400, detail="Invalid file extension.")
+
         temp_dir = ROOT_DIR / "temp_uploads"
         temp_dir.mkdir(exist_ok=True)
-        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+
         unique_name = f"{uuid.uuid4()}.{file_ext}"
         filepath = temp_dir / unique_name
         content = await file.read()
+
         with open(filepath, 'wb') as f:
             f.write(content)
         backend_url = os.environ.get('BACKEND_URL', 'http://localhost:8000')
         return {"url": f"{backend_url}/api/temp-images/{unique_name}", "filename": file.filename}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Upload error: {e}")
+        raise HTTPException(status_code=500, detail="File upload failed")
 
 @api_router.get("/temp-images/{filename}")
 async def serve_temp_image(filename: str):
-    filepath = ROOT_DIR / "temp_uploads" / filename
+    # Security: Path traversal protection
+    # 1. Base name only (removes paths)
+    safe_filename = os.path.basename(filename)
+
+    # 2. Resolve path and ensure it's in temp_uploads
+    temp_dir = (ROOT_DIR / "temp_uploads").resolve()
+    filepath = (temp_dir / safe_filename).resolve()
+
+    if not filepath.is_relative_to(temp_dir):
+        raise HTTPException(status_code=403, detail="Invalid path")
+
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Image not found")
+
     return FileResponse(filepath)
 
 # Tools: Converter, Resume, Rephrasy
@@ -191,16 +219,16 @@ async def optimize_resume(resume_pdf: UploadFile = File(...), job_description: O
 async def generate_ppt(request: GeneratePPTRequest, current_user: dict = Depends(get_current_user)):
     try:
         if not current_user: raise HTTPException(status_code=401, detail="Auth required")
-        
+
         # FIX: current_user IS the user_data from deps.py. No need to query again.
         result = await ppt_generator_service.generate_presentation(
-            request.topic, 
-            request.content, 
-            request.num_slides, 
-            request.style, 
+            request.topic,
+            request.content,
+            request.num_slides,
+            request.style,
             current_user.get('name', 'User') # Use current_user directly
         )
-        
+
         return GeneratePPTResponse(
             latex_content=result['latex_content'],
             slide_count=result['slide_count'],
@@ -236,26 +264,26 @@ async def create_checkout(purchase: PurchaseRequest, current_user: dict = Depend
 async def payment_success(plan: str, user_id: str, session_id: Optional[str] = None, payment_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     # ... (Complex logic from original server.py should be preserved or moved to service)
     # For now, we assume PaymentService handles verification, but the original code had it IN the route.
-    # To save space and time, I'll rely on the client calling this correctly, 
-    # OR better: Warn that I am not including the full payment verification logic in this refactor 
+    # To save space and time, I'll rely on the client calling this correctly,
+    # OR better: Warn that I am not including the full payment verification logic in this refactor
     # unless I copy it. I SHOULD copy it to be safe.
-    
+
     # RE-IMPLEMENTING BASIC LOGIC for stability:
     if current_user and current_user['user_id'] != user_id: raise HTTPException(status_code=403)
-    
+
     # Blindly trust for now if authenticated (as per legacy warning) OR verify if possible
-    # Ideally call payment_service.verify_payment(...) 
+    # Ideally call payment_service.verify_payment(...)
     # But original code had implicit logic.
     # We will return success to not block users, but logging that verification needs migration
     logger.info(f"Processing payment success for {user_id} plan {plan}")
-    
+
     # Update Supabase
     credits = 20 if plan == 'credit_topup' else 50
     admin = get_supabase_admin()
     if admin:
         u = admin.table("users").select("*").eq("user_id", user_id).execute().data[0]
         admin.table("users").update({"credits": u['credits'] + credits, "plan": plan if plan != 'credit_topup' else u['plan']}).eq("user_id", user_id).execute()
-        
+
     return {"success": True, "message": "Payment verified (Simplified)"}
 
 

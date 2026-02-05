@@ -1,0 +1,4 @@
+## 2026-02-05 - Unrestricted File Upload & Path Traversal Risks
+**Vulnerability:** The `upload_image` endpoint allowed uploading files with arbitrary extensions and MIME types (e.g., HTML/JS), leading to Stored XSS if served via `serve_temp_image`. The `serve_temp_image` endpoint used user input directly in path construction, theoretically allowing path traversal (though mitigated by FastAPI's path parameter validation).
+**Learning:** Even if `FileResponse` and libraries like `pathlib` offer some safety, explicitly checking `is_relative_to` and `os.path.basename` provides defense-in-depth. Validating file content types and extensions on upload is critical to prevent serving malicious content.
+**Prevention:** Always whitelist allowed file extensions and MIME types. Use `os.path.basename` to sanitize filenames and verify resolved paths are within the intended directory using `pathlib.Path.resolve().is_relative_to()`.
