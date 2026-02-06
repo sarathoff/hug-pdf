@@ -1,0 +1,4 @@
+## 2026-02-06 - Path Traversal in File Serving
+**Vulnerability:** The `serve_temp_image` endpoint constructed file paths by simply joining the root directory with user input (`ROOT_DIR / "temp_uploads" / filename`), blindly trusting the existence check.
+**Learning:** `pathlib.Path` joining operations (using `/`) resolve `..` segments if the path exists, effectively allowing traversal even without explicit path decoding, leading to LFI. Framework protections (like Starlette) might normalize paths in the routing layer, but the underlying function logic remains vulnerable if called directly or bypassed.
+**Prevention:** Always sanitize filenames (e.g., `Path(f).name` or `os.path.basename`) AND explicitly verify that the resolved absolute path starts with the expected base directory using `path.is_relative_to(base)`.

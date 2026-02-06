@@ -144,9 +144,19 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
 
 @api_router.get("/temp-images/{filename}")
 async def serve_temp_image(filename: str):
-    filepath = ROOT_DIR / "temp_uploads" / filename
-    if not filepath.exists():
+    # Security fix: Prevent path traversal
+    # 1. Sanitize filename (strip path components)
+    # Use pathlib for consistency
+    safe_filename = Path(filename).name
+
+    # 2. Resolve paths to absolute
+    base_dir = (ROOT_DIR / "temp_uploads").resolve()
+    filepath = (base_dir / safe_filename).resolve()
+
+    # 3. Verify the file is strictly inside the directory
+    if not filepath.is_relative_to(base_dir) or not filepath.exists():
         raise HTTPException(status_code=404, detail="Image not found")
+
     return FileResponse(filepath)
 
 # Tools: Converter, Resume, Rephrasy
