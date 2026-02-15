@@ -13,6 +13,7 @@ import ContactPage from "./pages/ContactPage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SuccessPage from "./pages/SuccessPage";
+import DeveloperPage from "./pages/DeveloperPage";
 import Layout from "./components/Layout";
 import CookieConsent from "./components/CookieConsent";
 
@@ -47,6 +48,7 @@ function App() {
             <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
             <Route path="/payment/success" element={<Layout><PaymentSuccessPage /></Layout>} />
             <Route path="/success" element={<Layout><SuccessPage /></Layout>} />
+            <Route path="/developer" element={<Layout><DeveloperPage /></Layout>} />
 
             {/* Pages with Custom/Standalone Layout */}
             <Route path="/editor" element={<EditorPage />} />

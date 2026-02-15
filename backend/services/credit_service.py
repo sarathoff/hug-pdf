@@ -56,6 +56,19 @@ class CreditService:
         }
     }
     
+    @staticmethod
+    def determine_plan_from_credits(credits: int) -> str:
+        """
+        Determine user plan based on credit count
+        
+        Args:
+            credits: Total credits user has
+            
+        Returns:
+            'pro' if credits > 5, else 'free'
+        """
+        return 'pro' if credits > 5 else 'free'
+    
     def __init__(self, supabase_admin: Client):
         """Initialize with admin Supabase client to bypass RLS"""
         self.db = supabase_admin
@@ -241,8 +254,15 @@ class CreditService:
             credit_field = f"{pack_type}_credits"
             new_value = current_credits.get(credit_field, 0) + credits
             
+            # Determine new plan based on total credits
+            # For simplicity, we'll use the main credit field or sum all credits
+            # Assuming 'credits' field exists in users table for total credits
+            total_credits = new_value  # This assumes pack_type credits = total credits
+            new_plan = self.determine_plan_from_credits(total_credits)
+            
             self.db.table("users").update({
                 credit_field: new_value,
+                'plan': new_plan,
                 'updated_at': datetime.now().isoformat()
             }).eq("user_id", user_id).execute()
             

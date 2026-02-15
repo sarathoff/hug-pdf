@@ -37,6 +37,9 @@ from backend.services.pdf_extractor_service import PDFExtractorService
 from backend.services.resume_optimizer_service import ResumeOptimizerService
 from backend.services.ppt_generator_service import PPTGeneratorService
 from backend.services.gemini_service import GeminiService # For PPT service init
+from backend.services.speech_service import get_speech_service
+from backend.services.api_key_service import get_api_key_service
+from backend.services.rate_limiter_service import get_rate_limiter
 
 # Initialize Logging
 if not logging.getLogger().handlers:
@@ -47,6 +50,51 @@ if not logging.getLogger().handlers:
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).parent
+
+# --- API Authentication Dependency ---
+async def verify_api_key(authorization: str = Header(None)):
+    """
+    Verify API key from Authorization header
+    Format: Authorization: Bearer pdf_xxxxx
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+    
+    api_key = authorization.replace("Bearer ", "")
+    
+    # Get services
+    supabase = get_supabase_admin()
+    api_key_service = get_api_key_service(supabase)
+    rate_limiter = get_rate_limiter()
+    
+    # Validate API key
+    key_data = api_key_service.validate_api_key(api_key)
+    if not key_data:
+        raise HTTPException(status_code=401, detail="Invalid or inactive API key")
+    
+    # Check rate limits
+    rate_limit_result = rate_limiter.check_limit(
+        key_id=key_data['id'],
+        tier=key_data['tier'],
+        requests_count=key_data['requests_count'],
+        requests_limit=key_data['requests_limit']
+    )
+    
+    if not rate_limit_result['allowed']:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. {rate_limit_result.get('reason', '')}",
+            headers={
+                "X-RateLimit-Limit": str(rate_limit_result['limit']),
+                "X-RateLimit-Remaining": str(rate_limit_result['remaining']),
+                "X-RateLimit-Reset": rate_limit_result['reset_at'],
+                "Retry-After": str(rate_limit_result.get('retry_after', 60))
+            }
+        )
+    
+    # Add rate limit headers to response context
+    key_data['rate_limit'] = rate_limit_result
+    return key_data
 
 # --- Service Initialization ---
 # (Note: AI and PDF services are now initialized within their routers or dependencies)
@@ -184,9 +232,279 @@ async def optimize_resume(resume_pdf: UploadFile = File(...), job_description: O
         logger.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Removed Rephrasy routes
+@api_router.post("/transcribe-audio")
+async def transcribe_audio(
+    audio: UploadFile = File(...),
+    language: Optional[str] = "auto",
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Transcribe audio to text using Google Cloud Speech-to-Text API
+    
+    Args:
+        audio: Audio file (WebM, WAV, MP3)
+        language: Language code (e.g., 'en-US', 'es-ES') or 'auto' for auto-detection
+        current_user: Authenticated user
+    
+    Returns:
+        JSON with transcribed text and detected language
+    """
+    try:
+        if not settings.GOOGLE_CLOUD_CREDENTIALS_PATH or not os.path.isfile(settings.GOOGLE_CLOUD_CREDENTIALS_PATH):
+            raise HTTPException(
+                status_code=500, 
+                detail="Speech-to-Text credentials not configured. Please add google-credentials.json file to the backend directory."
+            )
+        
+        # Read audio content
+        audio_content = await audio.read()
+        
+        # Determine audio encoding from filename
+        filename = audio.filename.lower()
+        if filename.endswith('.webm'):
+            encoding = "WEBM_OPUS"
+        elif filename.endswith('.wav'):
+            encoding = "LINEAR16"
+        elif filename.endswith('.mp3'):
+            encoding = "MP3"
+        elif filename.endswith('.ogg'):
+            encoding = "OGG_OPUS"
+        else:
+            encoding = "WEBM_OPUS"  # Default
+        
+        # Get speech service and transcribe
+        speech_service = get_speech_service(settings.GOOGLE_CLOUD_CREDENTIALS_PATH)
+        result = speech_service.transcribe_audio(
+            audio_content=audio_content,
+            language_code=language or "auto",
+            audio_encoding=encoding
+        )
+        
+        if not result['success']:
+            raise HTTPException(status_code=400, detail=result['error'])
+        
+        return {
+            "success": True,
+            "text": result['text'],
+            "language": result['language'],
+            "message": "Audio transcribed successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Transcription error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
+# ============================================================================
+# API v1 Endpoints - Developer API
+# ============================================================================
+
+# --- API Key Management ---
+
+@api_router.post("/v1/keys")
+async def create_api_key(
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Generate a new API key for the authenticated user"""
+    try:
+        # Check if user is authenticated
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        supabase = get_supabase_admin()
+        api_key_service = get_api_key_service(supabase)
+        
+        name = request.get('name', 'My API Key')
+        tier = request.get('tier', 'free')  # Default to free tier
+        
+        # Use 'id' field from current_user (Supabase auth users have 'id' field)
+        user_id = current_user.get('id') or current_user.get('user_id')
+        if not user_id:
+            raise HTTPException(status_code=500, detail="User ID not found in token")
+        
+        result = api_key_service.generate_api_key(
+            user_id=user_id,
+            name=name,
+            tier=tier
+        )
+        
+        if not result['success']:
+            raise HTTPException(status_code=500, detail=result['error'])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"API key generation error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/v1/keys")
+async def list_api_keys(current_user: dict = Depends(get_current_user)):
+    """List all API keys for the authenticated user"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        supabase = get_supabase_admin()
+        api_key_service = get_api_key_service(supabase)
+        
+        user_id = current_user.get('id') or current_user.get('user_id')
+        keys = api_key_service.get_user_api_keys(user_id)
+        return {"keys": keys}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing API keys: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.delete("/v1/keys/{key_id}")
+async def revoke_api_key(
+    key_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Revoke an API key"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        supabase = get_supabase_admin()
+        api_key_service = get_api_key_service(supabase)
+        
+        user_id = current_user.get('id') or current_user.get('user_id')
+        success = api_key_service.revoke_api_key(key_id, user_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="API key not found")
+        
+        return {"success": True, "message": "API key revoked"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error revoking API key: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Direct PDF Generation API ---
+
+@api_router.post("/v1/generate")
+async def generate_pdf_api(
+    request: dict,
+    key_data: dict = Depends(verify_api_key)
+):
+    """
+    Generate PDF and return file directly
+    
+    Uses the same credit system as the web app - 1 credit per PDF.
+    
+    Request body:
+    {
+        "prompt": "Create a resume for John Doe",
+        "mode": "normal",  // optional: "normal", "research", "ebook"
+        "format": "A4"     // optional
+    }
+    
+    Returns: PDF file (binary)
+    """
+    try:
+        from backend.services.gemini_service import GeminiService
+        from backend.services.pdf_service import PDFService
+        
+        prompt = request.get('prompt')
+        if not prompt:
+            raise HTTPException(status_code=400, detail="Missing 'prompt' in request body")
+        
+        mode = request.get('mode', 'normal')
+        user_id = key_data.get('user_id')
+        
+        # Get Supabase client
+        supabase = get_supabase_admin()
+        
+        # Check user credits
+        user_response = supabase.table('users').select('credits, plan').eq('user_id', user_id).single().execute()
+        
+        if not user_response.data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_credits = user_response.data.get('credits', 0)
+        user_plan = user_response.data.get('plan', 'free')
+        
+        # Check if user has credits
+        if user_credits < 1:
+            raise HTTPException(
+                status_code=402, 
+                detail="Insufficient credits. Please purchase more credits to continue using the API."
+            )
+        
+        # Determine tier based on plan
+        tier = 'pro' if user_credits > 5 or user_plan in ['pro', 'on_demand'] else 'free'
+        
+        # Initialize services
+        gemini_service = GeminiService()
+        pdf_service = PDFService()
+        
+        # Generate LaTeX code
+        logger.info(f"Generating PDF for API key {key_data['id']}, user {user_id}: {prompt[:50]}...")
+        latex_code = gemini_service.generate_latex_from_prompt(prompt, mode=mode, tier=tier)
+        
+        # Compile to PDF
+        pdf_bytes = await pdf_service.generate_pdf(latex_code)
+        
+        # Deduct 1 credit from user
+        new_credits = user_credits - 1
+        supabase.table('users').update({
+            'credits': new_credits,
+            'updated_at': datetime.now().isoformat()
+        }).eq('user_id', user_id).execute()
+        
+        logger.info(f"PDF generated successfully. Credits remaining: {new_credits}")
+        
+        # Track usage
+        api_key_service = get_api_key_service(supabase)
+        api_key_service.track_usage(key_data['id'], '/v1/generate', 200)
+        
+        # Generate filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"document_{timestamp}.pdf"
+        
+        # Return PDF with rate limit and credit headers
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-RateLimit-Limit": str(key_data['rate_limit']['limit']),
+                "X-RateLimit-Remaining": str(key_data['rate_limit']['remaining']),
+                "X-RateLimit-Reset": key_data['rate_limit']['reset_at'],
+                "X-Credits-Remaining": str(new_credits)
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"PDF generation error: {e}", exc_info=True)
+        
+        # Track failed usage
+        try:
+            supabase = get_supabase_admin()
+            api_key_service = get_api_key_service(supabase)
+            api_key_service.track_usage(key_data['id'], '/v1/generate', 500)
+        except:
+            pass
+        
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+
+# ============================================================================
 # PPT Generation (Legacy/Server kept)
+# ============================================================================
 @api_router.post("/generate-ppt", response_model=GeneratePPTResponse)
 async def generate_ppt(request: GeneratePPTRequest, current_user: dict = Depends(get_current_user)):
     try:
@@ -254,7 +572,24 @@ async def payment_success(plan: str, user_id: str, session_id: Optional[str] = N
     admin = get_supabase_admin()
     if admin:
         u = admin.table("users").select("*").eq("user_id", user_id).execute().data[0]
-        admin.table("users").update({"credits": u['credits'] + credits, "plan": plan if plan != 'credit_topup' else u['plan']}).eq("user_id", user_id).execute()
+        new_total_credits = u['credits'] + credits
+        
+        # Determine plan based on total credits: >5 = pro, <=5 = free
+        new_plan = 'pro' if new_total_credits > 5 else 'free'
+        
+        # For credit_topup, update to pro if credits > 5
+        # For pro plan purchase, set to pro regardless
+        if plan == 'credit_topup':
+            final_plan = new_plan
+        else:
+            final_plan = plan
+        
+        admin.table("users").update({
+            "credits": new_total_credits, 
+            "plan": final_plan
+        }).eq("user_id", user_id).execute()
+        
+        logger.info(f"Updated user {user_id}: credits={new_total_credits}, plan={final_plan}")
         
     return {"success": True, "message": "Payment verified (Simplified)"}
 

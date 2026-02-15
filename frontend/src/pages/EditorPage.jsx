@@ -7,6 +7,7 @@ import ImagePicker from '../components/ImagePicker';
 import PPTSetupForm from '../components/PPTSetupForm';
 import PDFViewer from '../components/PDFViewer';
 import { Sparkles } from 'lucide-react';
+import VoiceRecorder from '../components/VoiceRecorder';
 
 // Shadcn UI Components
 import { Button } from '../components/ui/button';
@@ -44,7 +45,8 @@ import {
     X,
     Wand2,
     Shield,
-    Presentation
+    Presentation,
+    Mic
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -87,6 +89,7 @@ const EditorPage = () => {
     // Image Upload State
     const [attachedFile, setAttachedFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
     const fileInputRef = useRef(null);
 
     // Refs for preventing double-firing
@@ -177,7 +180,8 @@ const EditorPage = () => {
                 navigate('/auth');
                 return;
             }
-            if (user.plan !== 'pro') {
+            // Check credits instead of plan: >5 credits = Pro user
+            if (user.credits <= 5) {
                 setShowUpgradeModal(true);
                 return;
             }
@@ -1019,6 +1023,23 @@ const EditorPage = () => {
                                 }}
                                 className="min-h-[50px] max-h-[120px] bg-transparent border-0 focus-visible:ring-0 resize-none p-2 text-sm leading-normal w-full"
                             />
+                            
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10 flex-shrink-0"
+                                            onClick={() => setShowVoiceRecorder(true)}
+                                        >
+                                            <Mic className="w-5 h-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Voice Input</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            
                             <Button
                                 size="icon"
                                 className={`h-10 w-10 flex-shrink-0 transition-all duration-200 ${input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
@@ -1312,6 +1333,17 @@ const EditorPage = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Voice Recorder Modal */}
+            {showVoiceRecorder && (
+                <VoiceRecorder
+                    onTranscriptComplete={(text) => {
+                        setInput(text);
+                        setShowVoiceRecorder(false);
+                    }}
+                    onClose={() => setShowVoiceRecorder(false)}
+                />
             )}
         </div>
     );

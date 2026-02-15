@@ -4,9 +4,13 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
-import { Slider } from '../components/ui/slider';
-import { Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight, Search, Book, Lock, X, Upload, Target, Presentation } from 'lucide-react';
+import { 
+  Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight, 
+  Search, Book, Lock, X, Upload, Target, Presentation, 
+  CheckCircle2, Zap, LayoutTemplate, GraduationCap, Building2, PenTool, Mic
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import VoiceRecorder from '../components/VoiceRecorder';
 
 const HomePage = () => {
   const [prompt, setPrompt] = useState('');
@@ -24,18 +28,22 @@ const HomePage = () => {
   const [resumeFile, setResumeFile] = useState(null);
   const [jobDescription, setJobDescription] = useState('');
   const [optimizerLoading, setOptimizerLoading] = useState(false);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  // Use Case Tab State
+  const [activeTab, setActiveTab] = useState('students');
 
   // Handle mode change with Pro user validation
   const handleModeChange = (newMode) => {
-    // Check if user is Pro for research and ebook modes
     if (newMode === 'research' || newMode === 'ebook') {
       if (!user) {
         navigate('/auth');
         return;
       }
-      if (user.plan !== 'pro') {
+      // Check credits instead of plan: >5 credits = Pro user
+      if (user.credits <= 5) {
         setShowUpgradeModal(true);
         return;
       }
@@ -44,7 +52,6 @@ const HomePage = () => {
   };
 
   const handleCreatePDF = () => {
-    // Validation based on mode
     let isValid = false;
     if (mode === 'ppt') {
       isValid = (pptInputMode === 'topic' && pptTopic.trim()) || (pptInputMode === 'content' && pptContent.trim());
@@ -58,7 +65,6 @@ const HomePage = () => {
         return;
       }
       
-      // Credit check only for non-PPT modes (PPT has its own monthly limit)
       if (mode !== 'ppt' && user.credits <= 0) {
         navigate('/pricing');
         return;
@@ -70,10 +76,9 @@ const HomePage = () => {
         navigate('/editor', { 
             state: { 
                 mode: 'ppt',
-            pptConfig: {
+                pptConfig: {
                     topic: pptInputMode === 'topic' ? pptTopic : null,
                     content: pptInputMode === 'content' ? pptContent : null,
-                    numSlides: 10,
                     numSlides: 10,
                     style: pptStyle
                 }
@@ -94,19 +99,15 @@ const HomePage = () => {
 
   const handleOptimizeResume = async () => {
     if (!resumeFile) return;
-    
     if (!user) {
       navigate('/auth');
       return;
     }
-
     setOptimizerLoading(true);
     try {
       const formData = new FormData();
       formData.append('resume_pdf', resumeFile);
-      if (jobDescription.trim()) {
-        formData.append('job_description', jobDescription);
-      }
+      if (jobDescription.trim()) formData.append('job_description', jobDescription);
 
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/optimize-resume`, {
         method: 'POST',
@@ -122,8 +123,6 @@ const HomePage = () => {
       }
 
       const data = await response.json();
-      
-      // Navigate to editor with optimized resume
       setShowResumeOptimizerModal(false);
       setResumeFile(null);
       setJobDescription('');
@@ -152,314 +151,320 @@ const HomePage = () => {
   ];
 
   return (
-    <div className="relative z-10 w-full">
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
-        {/* Header */}
-        <div className="text-center mb-12 sm:mb-16 space-y-6">
-          <Badge variant="secondary" className="mb-4 px-4 py-1.5 text-sm bg-blue-50 text-blue-700 border-blue-100 rounded-full cursor-default hover:bg-blue-50">
-            <Sparkles className="w-3.5 h-3.5 mr-2 fill-blue-700" />
-            AI-Powered PDF Generation
-          </Badge>
-
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900">
-            Create Beautiful PDFs
-            <span className="block mt-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent pb-4">
-              in Seconds with AI
-            </span>
-          </h1>
-
-          <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed px-4">
-            Just describe what you need. Our advanced AI will generate, format, and deliver
-            stunning professional PDFs tailored to your needs.
-          </p>
-
-          {/* Product Hunt Badge Removed */}
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-violet-100 selection:text-violet-900">
+      {/* Hero Section */}
+      <div className="relative pt-20 pb-32 overflow-hidden">
+        {/* Abstract Background Shapes */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full z-0 pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-violet-200/30 rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-10 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl" />
         </div>
 
-        {/* Main Input */}
-        <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl mb-12 overflow-hidden ring-1 ring-gray-200/50 max-w-2xl mx-auto">
-          <CardContent className="p-3 sm:p-5">
-            {/* Mode Selector - Segmented Control */}
-            <div className="flex justify-center mb-6">
-              <div className="bg-gray-100/80 p-1 rounded-xl flex flex-col sm:flex-row relative shadow-inner w-full sm:w-auto">
-                {/* Normal Mode */}
-                <button
-                  onClick={() => handleModeChange('normal')}
-                  className={`relative flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 z-10 ${mode === 'normal'
-                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5'
-                    : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Normal</span>
-                </button>
-
-                {/* PPT Mode */}
-                <button
-                  onClick={() => handleModeChange('ppt')}
-                  className={`relative flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 z-10 ${mode === 'ppt'
-                    ? 'bg-white text-orange-600 shadow-sm ring-1 ring-black/5'
-                    : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                >
-                  <Presentation className="w-4 h-4" />
-                  <span>PPT</span>
-                </button>
-
-                {/* Research Mode */}
-                <button
-                  onClick={() => handleModeChange('research')}
-                  className={`relative flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 z-10 ${mode === 'research'
-                    ? 'bg-white text-purple-600 shadow-sm ring-1 ring-black/5'
-                    : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                >
-                  <Search className="w-4 h-4" />
-                  <span>Research</span>
-                  {(user?.plan !== 'pro' || !user) && <Lock className="w-3 h-3 ml-0.5 opacity-50" />}
-                </button>
-
-                {/* E-book Mode */}
-                <button
-                  onClick={() => handleModeChange('ebook')}
-                  className={`relative flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 z-10 ${mode === 'ebook'
-                    ? 'bg-white text-green-600 shadow-sm ring-1 ring-black/5'
-                    : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                >
-                  <Book className="w-4 h-4" />
-                  <span>E-book</span>
-                  {(user?.plan !== 'pro' || !user) && <Lock className="w-3 h-3 ml-0.5 opacity-50" />}
-                </button>
-              </div>
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center space-y-8 mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <Sparkles className="w-4 h-4 text-violet-600" />
+              <span className="text-sm font-medium text-slate-600">The #1 AI Writing Partner for Professionals</span>
             </div>
 
-            {/* Mode Description Message */}
-            {mode !== 'normal' && (
-              <div className="text-center mb-5 -mt-2 animate-in fade-in slide-in-from-top-2 duration-300 px-4">
-                <div className={`inline-flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 px-4 py-1.5 rounded-full text-xs font-medium ${
-                  mode === 'research' ? 'bg-purple-100/50 text-purple-700' : 
-                  mode === 'ppt' ? 'bg-orange-100/50 text-orange-700' :
-                  'bg-green-100/50 text-green-700'
-                  }`}>
-                  {mode === 'research' ? (
-                    <>
-                      <div className="flex items-center gap-1.5">
-                        <Search className="w-3 h-3" />
-                        <span>Research mode with citations</span>
-                      </div>
-                      <span className="hidden sm:inline opacity-30">|</span>
-                      <span className="opacity-75 font-semibold">Powered by Perplexity AI</span>
-                    </>
-                  ) : mode === 'ppt' ? (
-                    <>
-                      <Presentation className="w-3 h-3" />
-                      PPT mode creates professional presentations with AI-generated slides
-                    </>
-                  ) : (
-                    <>
-                      <Book className="w-3 h-3" />
-                      E-book mode creates structured 20+ page documents
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-slate-900 max-w-4xl mx-auto leading-[1.1]">
+              Turn text into <span className="text-violet-600">beautiful documents</span> instantly.
+            </h1>
 
-            {mode === 'ppt' ? (
-              <div className="space-y-4">
-                {/* PPT Controls */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <button
-                      onClick={() => setPptInputMode('topic')}
-                      className={`p-3 rounded-lg border text-sm font-medium transition-all ${
-                          pptInputMode === 'topic'
-                              ? 'border-orange-500 bg-orange-50 text-orange-700'
-                              : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-                      }`}
-                  >
-                      From Topic
-                  </button>
-                  <button
-                      onClick={() => setPptInputMode('content')}
-                      className={`p-3 rounded-lg border text-sm font-medium transition-all ${
-                          pptInputMode === 'content'
-                              ? 'border-orange-500 bg-orange-50 text-orange-700'
-                              : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-                      }`}
-                  >
-                      From Content
-                  </button>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              Create professional PDFs, E-books, and Presentations in seconds using advanced AI. 
+              No design skills required.
+            </p>
+          </div>
+
+          {/* Main Interactive Card */}
+          <div className="relative max-w-3xl mx-auto">
+            <div className="absolute -inset-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-2xl blur opacity-20" />
+            <Card className="relative border-0 shadow-2xl bg-white/95 backdrop-blur-xl ring-1 ring-slate-200/50">
+              <CardContent className="p-6">
+                {/* Segmented Control Mode Selector */}
+                <div className="flex justify-center mb-8">
+                  <div className="inline-flex bg-slate-100/80 p-1.5 rounded-full shadow-inner gap-1">
+                    {[
+                      { id: 'normal', icon: FileText, label: 'Docs' },
+                      { id: 'ppt', icon: Presentation, label: 'Slides' },
+                      { id: 'research', icon: Search, label: 'Research' },
+                      { id: 'ebook', icon: Book, label: 'E-books' }
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => handleModeChange(m.id)}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
+                          mode === m.id
+                            ? 'bg-white text-violet-700 shadow-sm ring-1 ring-black/5'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
+                        }`}
+                      >
+                        <m.icon className="w-4 h-4" />
+                        {m.label}
+                        {(m.id === 'research' || m.id === 'ebook') && (!user || user.credits <= 5) && (
+                          <Lock className="w-3 h-3 ml-1 opacity-40" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="bg-white rounded-lg border border-gray-200 p-1">
-                  {pptInputMode === 'topic' ? (
-                    <div className="flex items-center px-3">
-                      <Sparkles className="w-5 h-5 text-orange-500 mr-2" />
-                      <input
-                        type="text"
-                        value={pptTopic}
-                        onChange={(e) => setPptTopic(e.target.value)}
-                        placeholder="e.g., The Future of AI, Marketing Strategy 2024..."
-                        className="flex-1 py-3 bg-transparent outline-none text-gray-900 placeholder-gray-400"
-                      />
+                {/* Input Area */}
+                {mode === 'ppt' ? (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="flex gap-2 mb-2 p-1 bg-slate-50 rounded-lg w-fit">
+                      {['topic', 'content'].map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setPptInputMode(type)}
+                          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                            pptInputMode === type ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          From {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    <Textarea
-                      value={pptContent}
-                      onChange={(e) => setPptContent(e.target.value)}
-                      placeholder="Paste your content here..."
-                      className="border-0 focus-visible:ring-0 min-h-[100px] resize-none"
+                    {pptInputMode === 'topic' ? (
+                      <div className="relative group">
+                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Sparkles className="h-5 w-5 text-violet-400 group-focus-within:text-violet-600 transition-colors" />
+                         </div>
+                        <input
+                          type="text"
+                          value={pptTopic}
+                          onChange={(e) => setPptTopic(e.target.value)}
+                          placeholder="e.g., Marketing Strategy for 2024..."
+                          className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-violet-500 focus:bg-white text-lg outline-none transition-all placeholder:text-slate-400"
+                        />
+                      </div>
+                    ) : (
+                      <Textarea
+                        value={pptContent}
+                        onChange={(e) => setPptContent(e.target.value)}
+                        placeholder="Paste your content outline here..."
+                        className="min-h-[120px] bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-violet-500 focus:bg-white text-base resize-none"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative group animate-in fade-in duration-300">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Sparkles className="h-5 w-5 text-violet-400 group-focus-within:text-violet-600 transition-colors" />
+                    </div>
+                    <input
+                      type="text"
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder={
+                        mode === 'research' ? "Research topic (e.g., Quantum Computing Trends)..." : 
+                        mode === 'ebook' ? "E-book title (e.g., The Guide to Digital Marketing)..." :
+                        "Describe your document (e.g., Resume for Senior Developer)..."
+                      }
+                      className="w-full pl-12 pr-32 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-violet-500 focus:bg-white text-lg outline-none transition-all placeholder:text-slate-400"
                     />
-                  )}
-                </div>
+                    <button
+                      onClick={() => setShowVoiceRecorder(true)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-violet-100 rounded-lg transition-colors group"
+                      title="Voice input"
+                    >
+                      <Mic className="w-5 h-5 text-slate-400 group-hover:text-violet-600" />
+                    </button>
+                  </div>
+                )}
 
-                <Button
-                  onClick={handleCreatePDF}
-                  disabled={isGenerating || (pptInputMode === 'topic' && !pptTopic.trim()) || (pptInputMode === 'content' && !pptContent.trim())}
-                  size="lg"
-                  className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-lg rounded-xl font-medium"
-                >
-                  Generate Presentation
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-stretch gap-2 transition-all">
-                <div className="flex-1 flex items-center gap-3 px-4 py-3 sm:py-2 bg-white sm:bg-transparent rounded-lg border sm:border-0 border-gray-100">
-                  <Sparkles className={`w-5 h-5 flex-shrink-0 ${mode === 'research' ? 'text-purple-500' : 'text-blue-500'} animate-pulse`} />
-                  <input
-                    type="text"
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder={mode === 'research' ? "Research topic..." : "Describe your PDF..."}
-                    className="flex-1 bg-transparent parse-none outline-none text-gray-900 placeholder-gray-400 text-base sm:text-lg w-full min-w-0"
-                  />
+                {/* Submit Button */}
+                <div className="mt-6">
+                   <Button
+                    onClick={handleCreatePDF}
+                    disabled={isGenerating || (mode === 'ppt' && (!pptTopic && !pptContent)) || (mode !== 'ppt' && !prompt.trim())}
+                    className="w-full h-14 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-lg font-semibold shadow-lg shadow-violet-500/25 transition-all transform active:scale-[0.99]"
+                  >
+                    {isGenerating ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Generating Magic...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        Generate {mode === 'ppt' ? 'Presentation' : 'Document'} 
+                        <ArrowRight className="w-5 h-5" />
+                      </span>
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handleCreatePDF}
-                  disabled={!prompt.trim() || isGenerating}
-                  size="lg"
-                  className={`h-12 sm:h-14 px-8 text-base shadow-lg rounded-xl transition-all duration-300 transform hover:scale-[1.02] w-full sm:w-auto mt-2 sm:mt-0 ${
-                    mode === 'research' 
-                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700' 
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                  } text-white`}
-                >
-                  Generate
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Example Prompts */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto px-2">
-          {examplePrompts.map((example, index) => {
-            const Icon = example.icon;
-            return (
-              <button
-                key={index}
-                onClick={() => setPrompt(example.text)}
-                className="group flex items-center gap-4 p-4 bg-white/50 hover:bg-white border border-gray-100 hover:border-blue-100 rounded-2xl transition-all duration-300 hover:shadow-lg text-left"
-              >
-                <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors flex-shrink-0">
-                  <Icon className="w-5 h-5 text-gray-500 group-hover:text-blue-600" />
-                </div>
-                <span className="text-sm sm:text-base text-gray-600 group-hover:text-gray-900 font-medium transition-colors">
-                  {example.text}
-                </span>
-              </button>
-            );
-          })}
-          
-          {/* Resume Optimizer Card */}
-          <button
-            onClick={() => setShowResumeOptimizerModal(true)}
-            className="group flex items-center gap-4 p-4 bg-gradient-to-br from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-2 border-purple-200 hover:border-purple-300 rounded-2xl transition-all duration-300 hover:shadow-xl text-left"
-          >
-            <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-purple-600 group-hover:text-white transition-colors flex-shrink-0">
-              <Target className="w-5 h-5 text-purple-600 group-hover:text-white" />
+            {/* Quick Actions Strip */}
+            <div className="flex gap-4 mt-6 overflow-x-auto pb-4 no-scrollbar">
+               {/* Resume Optimizer Button */}
+               <button 
+                  onClick={() => setShowResumeOptimizerModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap"
+                >
+                  <Target className="w-4 h-4 text-violet-500" />
+                  <span className="text-sm font-medium">Optimize Resume</span>
+                </button>
+                {examplePrompts.map((p, i) => (
+                  <button 
+                    key={i}
+                    onClick={() => setPrompt(p.text)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap"
+                  >
+                    <p.icon className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm font-medium text-slate-600">{p.text.split(' ').slice(0, 3).join(' ')}...</span>
+                  </button>
+                ))}
             </div>
-            <div className="flex-1">
-              <span className="text-sm sm:text-base text-gray-900 font-semibold block">
-                Resume Optimizer
-              </span>
-              <span className="text-xs text-gray-600">
-                Upload resume + job description → ATS-optimized PDF
-              </span>
-            </div>
-            <ArrowRight className="w-5 h-5 text-purple-600 group-hover:text-purple-700" />
-          </button>
+          </div>
         </div>
       </div>
 
-      {/* Upgrade Modal for Pro Features */}
-      {showUpgradeModal && (
+      {/* Trusted By Marquee */}
+      <div className="border-y border-slate-200 bg-white py-12 overflow-hidden">
+        <p className="text-center text-sm font-semibold text-slate-500 uppercase tracking-wider mb-8">Trusted by teams from innovative companies</p>
+        <div className="relative flex overflow-x-hidden group">
+          <div className="flex animate-marquee whitespace-nowrap gap-16 px-8">
+            {['TechFlow', 'GlobalSync', 'InnovateLabs', 'FutureScales', 'DataMind', 'CloudPeak', 'NextGen', 'SmartSystems'].map((name, i) => (
+              <span key={i} className="text-2xl font-bold text-slate-300 flex items-center gap-2">
+                <div className="w-8 h-8 bg-slate-200 rounded-md" /> {name}
+              </span>
+            ))}
+             {['TechFlow', 'GlobalSync', 'InnovateLabs', 'FutureScales', 'DataMind', 'CloudPeak', 'NextGen', 'SmartSystems'].map((name, i) => (
+              <span key={`dup-${i}`} className="text-2xl font-bold text-slate-300 flex items-center gap-2">
+                <div className="w-8 h-8 bg-slate-200 rounded-md" /> {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Features Grid */}
+      <div className="py-24 px-4 bg-slate-50">
+        <div className="max-w-6xl mx-auto">
+           <div className="text-center mb-16 space-y-4">
+             <h2 className="text-3xl md:text-5xl font-bold text-slate-900">Everything you need to create</h2>
+             <p className="text-lg text-slate-600 max-w-2xl mx-auto">From simple docs to complex research papers, we've got you covered.</p>
+           </div>
+           
+           <div className="grid md:grid-cols-3 gap-8">
+              {[
+                { icon: Zap, title: "Instant Generation", desc: "Turn simple prompts into full documents with proper formatting and structure in seconds.", color: "text-amber-500", bg: "bg-amber-50" },
+                { icon: Search, title: "Deep Research", desc: "Powered by Perplexity, find accurate citations and sources for academic papers.", color: "text-purple-500", bg: "bg-purple-50" },
+                { icon: Presentation, title: "Smart Decks", desc: "Convert text into beautiful presentation slides ready for your next meeting.", color: "text-blue-500", bg: "bg-blue-50" }
+              ].map((f, i) => (
+                <div key={i} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-violet-100 transition-all duration-300 group">
+                   <div className={`w-14 h-14 ${f.bg} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                      <f.icon className={`w-7 h-7 ${f.color}`} />
+                   </div>
+                   <h3 className="text-xl font-bold text-slate-900 mb-3">{f.title}</h3>
+                   <p className="text-slate-600 leading-relaxed">{f.desc}</p>
+                </div>
+              ))}
+           </div>
+        </div>
+      </div>
+
+      {/* Use Cases Section */}
+      <div className="py-24 px-4 bg-white border-y border-slate-100">
+         <div className="max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-16 items-center">
+               <div className="space-y-8">
+                  <h2 className="text-3xl md:text-5xl font-bold text-slate-900">Tailored for your workflow</h2>
+                  <div className="space-y-4">
+                     {[
+                       { id: 'students', icon: GraduationCap, label: 'For Students', desc: 'Create essays, research papers, and study notes 10x faster.' },
+                       { id: 'business', icon: Building2, label: 'For Business', desc: 'Generate reports, proposals, and presentations instantly.' },
+                       { id: 'creators', icon: PenTool, label: 'For Creators', desc: 'Write e-books and guides to grow your audience.' }
+                     ].map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setActiveTab(t.id)}
+                          className={`w-full flex items-start text-left gap-4 p-6 rounded-xl border transition-all duration-300 ${
+                            activeTab === t.id 
+                            ? 'bg-violet-50 border-violet-200 shadow-md transform scale-[1.02]' 
+                            : 'bg-white border-slate-100 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`p-3 rounded-lg ${activeTab === t.id ? 'bg-violet-100' : 'bg-slate-100'}`}>
+                             <t.icon className={`w-6 h-6 ${activeTab === t.id ? 'text-violet-600' : 'text-slate-500'}`} />
+                          </div>
+                          <div>
+                             <h4 className={`text-lg font-bold ${activeTab === t.id ? 'text-violet-900' : 'text-slate-700'}`}>{t.label}</h4>
+                             <p className="text-slate-500 mt-1">{t.desc}</p>
+                          </div>
+                        </button>
+                     ))}
+                  </div>
+               </div>
+               <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-violet-600/20 to-blue-500/20 rounded-3xl blur-2xl" />
+                  <div className="relative bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-800 aspect-square flex flex-col items-center justify-center text-center space-y-6">
+                      <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center">
+                         {activeTab === 'students' && <GraduationCap className="w-10 h-10 text-violet-400" />}
+                         {activeTab === 'business' && <Building2 className="w-10 h-10 text-blue-400" />}
+                         {activeTab === 'creators' && <Book className="w-10 h-10 text-amber-400" />}
+                      </div>
+                      <div>
+                         <h3 className="text-2xl font-bold text-white mb-2">
+                           {activeTab === 'students' ? 'A+ Papers in Minutes' : activeTab === 'business' ? 'Close Deals Faster' : 'Publish Besellers'}
+                         </h3>
+                         <p className="text-slate-400 max-w-xs mx-auto">
+                            Stop staring at a blank page. Let our AI handle the formatting, citations, and structure so you can focus on the ideas.
+                         </p>
+                      </div>
+                      <div className="flex gap-2">
+                         <div className="w-2 h-2 rounded-full bg-slate-700" />
+                         <div className="w-2 h-2 rounded-full bg-slate-700" />
+                         <div className="w-12 h-2 rounded-full bg-violet-500" />
+                      </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+
+       {/* Upgrade Modal for Pro Features */}
+       {showUpgradeModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative transform transition-all scale-100">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
             <button
               onClick={() => setShowUpgradeModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 ring-4 ring-white shadow-lg">
-                <Lock className="w-8 h-8 text-purple-600" />
+              <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Lock className="w-8 h-8 text-violet-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Unlock Pro Features</h3>
+              <p className="text-slate-600 mb-6">Upgrade to access Research Mode and E-book generation.</p>
+              
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-lg">
+                  <Search className="w-5 h-5 text-violet-600" />
+                  <span className="text-sm font-medium text-violet-900">Deep Research Mode</span>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-lg">
+                  <Book className="w-5 h-5 text-violet-600" />
+                  <span className="text-sm font-medium text-violet-900">Unlimited E-books</span>
+                </div>
               </div>
 
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                {user ? 'Unlock Pro Features' : 'Login Required'}
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {user
-                  ? 'Research Mode and E-book Mode are exclusive features for Pro users. Upgrade to unlock advanced AI capabilities!'
-                  : 'Please sign in or create an account to access advanced features like Research Mode and E-book creation.'
-                }
-              </p>
-
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-5 mb-6 border border-purple-100/50">
-                <h4 className="font-semibold text-gray-900 mb-3 text-sm uppercase tracking-wider">
-                  {user ? 'Pro Features Include:' : 'Advanced Features:'}
-                </h4>
-                <ul className="text-sm text-gray-700 space-y-2.5 text-left">
-                  <li className="flex items-center gap-2.5">
-                    <div className="p-1 bg-purple-100 rounded text-purple-600"><Search className="w-3.5 h-3.5" /></div>
-                    Research Mode with citations
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <div className="p-1 bg-green-100 rounded text-green-600"><Book className="w-3.5 h-3.5" /></div>
-                    E-book creation (20+ pages)
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <div className="p-1 bg-blue-100 rounded text-blue-600"><FileText className="w-3.5 h-3.5" /></div>
-                    50 PDF downloads/month
-                  </li>
-                </ul>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowUpgradeModal(false)}
-                  className="flex-1 border-gray-200 hover:bg-gray-50 text-gray-700"
-                >
-                  Maybe Later
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowUpgradeModal(false);
-                    navigate(user ? '/pricing' : '/auth');
-                  }}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-blue-500/25"
-                >
-                  {user ? 'Upgrade to Pro' : 'Login / Sign Up'}
-                </Button>
-              </div>
+              <Button
+                onClick={() => {
+                  setShowUpgradeModal(false);
+                  navigate('/pricing');
+                }}
+                className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+              >
+                Upgrade Now
+              </Button>
             </div>
           </div>
         </div>
@@ -468,106 +473,77 @@ const HomePage = () => {
       {/* Resume Optimizer Modal */}
       {showResumeOptimizerModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative transform transition-all scale-100">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
             <button
               onClick={() => {
                 setShowResumeOptimizerModal(false);
                 setResumeFile(null);
                 setJobDescription('');
               }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 ring-4 ring-white shadow-lg">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Target className="w-8 h-8 text-purple-600" />
               </div>
-
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                Resume Optimizer
-              </h3>
-              <p className="text-gray-600 text-sm">
-                Upload your resume and get an ATS-optimized version
-              </p>
+              <h3 className="text-2xl font-bold text-slate-900">Resume Optimizer</h3>
+              <p className="text-slate-600 text-sm">Upload your resume for ATS optimization</p>
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Resume PDF
-                </label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => setResumeFile(e.target.files[0])}
-                    className="hidden"
-                    id="resume-upload"
-                  />
-                  <label
-                    htmlFor="resume-upload"
-                    className="flex items-center justify-center gap-2 w-full px-4 py-8 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 hover:bg-purple-50 cursor-pointer transition-all"
-                  >
-                    <Upload className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-600">
-                      {resumeFile ? resumeFile.name : 'Click to upload PDF'}
-                    </span>
-                  </label>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Job Description (Optional)
-                </label>
-                <textarea
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  placeholder="Paste the job description here for role-specific optimization..."
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all resize-none"
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 hover:bg-slate-50 transition-colors text-center cursor-pointer relative">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setResumeFile(e.target.files[0])}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
                 />
-                <p className="mt-2 text-xs text-gray-500">
-                  Add job description to tailor your resume for the role
-                </p>
+                <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <p className="text-sm text-slate-600 font-medium">{resumeFile ? resumeFile.name : 'Click to upload PDF'}</p>
               </div>
 
+              <Textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                placeholder="Paste job description (optional)..."
+                className="bg-slate-50 border-slate-200 text-sm"
+              />
+
               <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowResumeOptimizerModal(false);
-                    setResumeFile(null);
-                    setJobDescription('');
-                  }}
-                  disabled={optimizerLoading}
-                  className="flex-1 border-gray-200 hover:bg-gray-50 text-gray-700"
+                <Button variant="outline" onClick={() => setShowResumeOptimizerModal(false)} className="flex-1">Cancel</Button>
+                <Button 
+                  onClick={handleOptimizeResume} 
+                  disabled={!resumeFile || optimizerLoading} 
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleOptimizeResume}
-                  disabled={!resumeFile || optimizerLoading}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/25"
-                >
-                  {optimizerLoading ? (
-                    <>
-                      <span className="animate-spin mr-2">⏳</span>
-                      Optimizing...
-                    </>
-                  ) : (
-                    <>
-                      Optimize Resume
-                      <ArrowRight className="ml-2 w-4 h-4" />
-                    </>
-                  )}
+                  {optimizerLoading ? 'Optimizing...' : 'Optimize'}
                 </Button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Voice Recorder Modal */}
+      {showVoiceRecorder && (
+        <VoiceRecorder
+          onTranscriptComplete={(text) => {
+            if (mode === 'ppt') {
+              if (pptInputMode === 'topic') {
+                setPptTopic(text);
+              } else {
+                setPptContent(text);
+              }
+            } else {
+              setPrompt(text);
+            }
+            setShowVoiceRecorder(false);
+          }}
+          onClose={() => setShowVoiceRecorder(false)}
+        />
       )}
     </div>
   );

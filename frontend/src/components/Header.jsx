@@ -11,7 +11,8 @@ import {
     CreditCard,
     LogOut,
     ChevronRight,
-    LayoutDashboard
+    LayoutDashboard,
+    Code
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -101,7 +102,7 @@ const Header = () => {
                                             <div className="flex flex-col space-y-1">
                                                 <p className="text-sm font-medium leading-none">{user.email}</p>
                                                 <p className="text-xs leading-none text-muted-foreground">
-                                                    {user.plan === 'free' ? 'Free Plan' : 'Pro Plan'}
+                                                    {user.credits <= 5 ? 'Free Plan' : 'Pro Plan'}
                                                 </p>
                                             </div>
                                         </DropdownMenuLabel>
@@ -109,6 +110,10 @@ const Header = () => {
                                         <DropdownMenuItem onClick={() => navigate('/editor')}>
                                             <LayoutDashboard className="mr-2 h-4 w-4" />
                                             <span>Dashboard</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => navigate('/developer')}>
+                                            <Code className="mr-2 h-4 w-4" />
+                                            <span>Developer</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => navigate('/pricing')}>
                                             <CreditCard className="mr-2 h-4 w-4" />

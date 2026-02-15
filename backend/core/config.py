@@ -32,6 +32,13 @@ class Settings:
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     
+    # Google Cloud Speech-to-Text credentials
+    # Path to service account JSON file
+    GOOGLE_CLOUD_CREDENTIALS_PATH: str = os.getenv(
+        "GOOGLE_CLOUD_CREDENTIALS_PATH",
+        str(Path(__file__).parent.parent / "google-credentials.json")
+    )
+    
     # Models
     # Using stable, production-ready models
     # Updated based on user request and available models

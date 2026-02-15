@@ -103,3 +103,4 @@ beautifulsoup4==4.14.3
 zopfli==0.4.0
 PyPDF2==3.0.1
 firecrawl-py>=1.0.0
+google-cloud-speech>=2.20.0
