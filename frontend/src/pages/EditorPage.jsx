@@ -161,7 +161,8 @@ const EditorPage = () => {
             if (savedLatex) setLatexContent(savedLatex);
             if (savedMode) setMode(savedMode);
         }
-    }, []); // Run only once on mount - DO NOT add dependencies mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Save state to localStorage whenever it changes
     useEffect(() => {

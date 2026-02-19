@@ -153,25 +153,25 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-violet-100 selection:text-violet-900">
       {/* Hero Section */}
-      <div className="relative pt-20 pb-32 overflow-hidden">
+      <div className="relative pt-12 md:pt-20 pb-20 md:pb-32 overflow-hidden">
         {/* Abstract Background Shapes */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full z-0 pointer-events-none">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-violet-200/30 rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl" />
+          <div className="absolute top-20 left-10 w-48 h-48 md:w-72 md:h-72 bg-violet-200/30 rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-10 w-64 h-64 md:w-96 md:h-96 bg-blue-200/30 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center space-y-8 mb-16">
+          <div className="text-center space-y-6 md:space-y-8 mb-12 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <Sparkles className="w-4 h-4 text-violet-600" />
-              <span className="text-sm font-medium text-slate-600">The #1 AI Writing Partner for Professionals</span>
+              <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4 text-violet-600" />
+              <span className="text-xs md:text-sm font-medium text-slate-600">The #1 AI Writing Partner for Professionals</span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-slate-900 max-w-4xl mx-auto leading-[1.1]">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 max-w-4xl mx-auto leading-tight md:leading-[1.1]">
               Turn text into <span className="text-violet-600">beautiful documents</span> instantly.
             </h1>
 
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed px-4">
               Create professional PDFs, E-books, and Presentations in seconds using advanced AI. 
               No design skills required.
             </p>
@@ -181,10 +181,10 @@ const HomePage = () => {
           <div className="relative max-w-3xl mx-auto">
             <div className="absolute -inset-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-2xl blur opacity-20" />
             <Card className="relative border-0 shadow-2xl bg-white/95 backdrop-blur-xl ring-1 ring-slate-200/50">
-              <CardContent className="p-6">
+              <CardContent className="p-4 md:p-6">
                 {/* Segmented Control Mode Selector */}
-                <div className="flex justify-center mb-8">
-                  <div className="inline-flex bg-slate-100/80 p-1.5 rounded-full shadow-inner gap-1">
+                <div className="flex justify-center mb-6 md:mb-8">
+                  <div className="bg-slate-100/80 p-1.5 rounded-2xl md:rounded-full shadow-inner gap-2 md:gap-1 grid grid-cols-2 md:inline-flex w-full md:w-auto">
                     {[
                       { id: 'normal', icon: FileText, label: 'Docs' },
                       { id: 'ppt', icon: Presentation, label: 'Slides' },
@@ -194,16 +194,16 @@ const HomePage = () => {
                       <button
                         key={m.id}
                         onClick={() => handleModeChange(m.id)}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
+                        className={`flex items-center justify-center gap-2 px-3 md:px-5 py-2.5 rounded-xl md:rounded-full text-sm font-medium transition-all duration-300 ${
                           mode === m.id
                             ? 'bg-white text-violet-700 shadow-sm ring-1 ring-black/5'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
                         }`}
                       >
-                        <m.icon className="w-4 h-4" />
-                        {m.label}
+                        <m.icon className="w-4 h-4 shrink-0" />
+                        <span>{m.label}</span>
                         {(m.id === 'research' || m.id === 'ebook') && (!user || user.credits <= 5) && (
-                          <Lock className="w-3 h-3 ml-1 opacity-40" />
+                          <Lock className="w-3 h-3 ml-1 opacity-40 shrink-0" />
                         )}
                       </button>
                     ))}
@@ -213,12 +213,12 @@ const HomePage = () => {
                 {/* Input Area */}
                 {mode === 'ppt' ? (
                   <div className="space-y-4 animate-in fade-in duration-300">
-                    <div className="flex gap-2 mb-2 p-1 bg-slate-50 rounded-lg w-fit">
+                    <div className="flex gap-2 mb-2 p-1 bg-slate-50 rounded-lg w-full md:w-fit overflow-x-auto">
                       {['topic', 'content'].map((type) => (
                         <button
                           key={type}
                           onClick={() => setPptInputMode(type)}
-                          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                          className={`flex-1 md:flex-none px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                             pptInputMode === type ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'
                           }`}
                         >
@@ -236,7 +236,7 @@ const HomePage = () => {
                           value={pptTopic}
                           onChange={(e) => setPptTopic(e.target.value)}
                           placeholder="e.g., Marketing Strategy for 2024..."
-                          className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-violet-500 focus:bg-white text-lg outline-none transition-all placeholder:text-slate-400"
+                          className="w-full pl-12 pr-4 py-3 md:py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-violet-500 focus:bg-white text-base md:text-lg outline-none transition-all placeholder:text-slate-400"
                         />
                       </div>
                     ) : (
@@ -263,11 +263,11 @@ const HomePage = () => {
                         mode === 'ebook' ? "E-book title (e.g., The Guide to Digital Marketing)..." :
                         "Describe your document (e.g., Resume for Senior Developer)..."
                       }
-                      className="w-full pl-12 pr-32 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-violet-500 focus:bg-white text-lg outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-12 pr-12 md:pr-32 py-3 md:py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-violet-500 focus:bg-white text-base md:text-lg outline-none transition-all placeholder:text-slate-400 truncate"
                     />
                     <button
                       onClick={() => setShowVoiceRecorder(true)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-violet-100 rounded-lg transition-colors group"
+                      className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-violet-100 rounded-lg transition-colors group"
                       title="Voice input"
                     >
                       <Mic className="w-5 h-5 text-slate-400 group-hover:text-violet-600" />
@@ -280,17 +280,17 @@ const HomePage = () => {
                    <Button
                     onClick={handleCreatePDF}
                     disabled={isGenerating || (mode === 'ppt' && (!pptTopic && !pptContent)) || (mode !== 'ppt' && !prompt.trim())}
-                    className="w-full h-14 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-lg font-semibold shadow-lg shadow-violet-500/25 transition-all transform active:scale-[0.99]"
+                    className="w-full h-12 md:h-14 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-base md:text-lg font-semibold shadow-lg shadow-violet-500/25 transition-all transform active:scale-[0.99]"
                   >
                     {isGenerating ? (
                       <span className="flex items-center gap-2">
-                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         Generating Magic...
                       </span>
                     ) : (
                       <span className="flex items-center gap-2">
                         Generate {mode === 'ppt' ? 'Presentation' : 'Document'} 
-                        <ArrowRight className="w-5 h-5" />
+                        <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
                       </span>
                     )}
                   </Button>
@@ -299,11 +299,11 @@ const HomePage = () => {
             </Card>
 
             {/* Quick Actions Strip */}
-            <div className="flex gap-4 mt-6 overflow-x-auto pb-4 no-scrollbar">
+            <div className="flex gap-3 md:gap-4 mt-6 overflow-x-auto pb-4 no-scrollbar px-1 -mx-4 md:mx-0 px-4 md:px-0 scroll-smooth">
                {/* Resume Optimizer Button */}
                <button 
                   onClick={() => setShowResumeOptimizerModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-2 px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap shrink-0"
                 >
                   <Target className="w-4 h-4 text-violet-500" />
                   <span className="text-sm font-medium">Optimize Resume</span>
@@ -312,7 +312,7 @@ const HomePage = () => {
                   <button 
                     key={i}
                     onClick={() => setPrompt(p.text)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap"
+                    className="flex items-center gap-2 px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap shrink-0"
                   >
                     <p.icon className="w-4 h-4 text-slate-400" />
                     <span className="text-sm font-medium text-slate-600">{p.text.split(' ').slice(0, 3).join(' ')}...</span>
