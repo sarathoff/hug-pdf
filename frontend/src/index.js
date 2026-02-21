@@ -31,10 +31,11 @@ window.addEventListener('unhandledrejection', (event) => {
 // Also suppress in console
 const originalError = console.error;
 console.error = (...args) => {
+  const errorString = args.map(arg => arg?.toString() || '').join(' ');
   if (
-    args[0]?.message?.includes('signal is aborted') ||
-    args[0]?.toString()?.includes('AbortError') ||
-    args[0]?.name === 'AbortError'
+    errorString.includes('signal is aborted') ||
+    errorString.includes('AbortError') ||
+    args.some(arg => arg?.name === 'AbortError' || arg?.code === 20)
   ) {
     return;
   }
