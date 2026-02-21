@@ -62,7 +62,7 @@ async def generate_initial(
             credits_remaining=10 # fetch actual
         )
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.exception(f"Error in generate_initial: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chat", response_model=ChatResponse)

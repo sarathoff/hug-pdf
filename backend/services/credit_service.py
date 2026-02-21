@@ -27,7 +27,7 @@ class CreditService:
             'diagram_credits': 0,
             'ebook_credits': 0,
             'pdf_limit': 5,  # 5 free PDFs
-            'model': 'gemini-2.5-pro',
+            'model': 'gemini-3-flash',
             'perplexity_enabled': False
         },
         'starter': {
@@ -35,7 +35,7 @@ class CreditService:
             'diagram_credits': 5,
             'ebook_credits': 0,
             'pdf_limit': 100,
-            'model': 'gemini-2.5-pro',
+            'model': 'gemini-3-flash',
             'perplexity_enabled': False  # Use Google Search instead
         },
         'pro': {
@@ -43,7 +43,7 @@ class CreditService:
             'diagram_credits': 25,
             'ebook_credits': 2,
             'pdf_limit': -1,  # Unlimited
-            'model': 'gemini-2.5-pro',
+            'model': 'gemini-3.1-pro',
             'perplexity_enabled': True
         },
         'power': {
@@ -51,7 +51,7 @@ class CreditService:
             'diagram_credits': -1,  # Unlimited
             'ebook_credits': 10,
             'pdf_limit': -1,  # Unlimited
-            'model': 'gemini-2.5-pro',
+            'model': 'gemini-3.1-pro',
             'perplexity_enabled': True
         }
     }
