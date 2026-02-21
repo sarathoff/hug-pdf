@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-    FileText,
     Menu,
     X,
-    User as UserIcon,
-    Compass,
     Zap,
     Info,
     CreditCard,
     LogOut,
     ChevronRight,
     LayoutDashboard,
-    Code
+    Code,
+    BookOpen,
+    Github,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -42,34 +41,35 @@ const Header = () => {
     };
 
     const navigation = [
+        { name: 'API Docs', href: '/api-docs', icon: Code },
+        { name: 'Blog', href: '/blog', icon: BookOpen },
         { name: 'Pricing', href: '/pricing', icon: CreditCard },
         { name: 'About', href: '/about', icon: Info },
-        { name: 'Contact', href: '/contact', icon: Compass },
     ];
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b border-gray-200/50 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
+        <header className="sticky top-0 z-50 w-full border-b border-slate-200/60 bg-white/90 backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex h-16 items-center justify-between">
+                <div className="h-16 flex items-center justify-between">
                     {/* Logo */}
-                    <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-90">
+                    <Link to="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90 shrink-0">
                         <img
                             src="/logo.png"
                             alt="HugPDF Logo"
                             className="h-8 w-8 object-contain"
                         />
-                        <span className="hidden font-bold sm:inline-block bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                        <span className="font-bold text-slate-900 text-lg hidden sm:inline-block">
                             HugPDF
                         </span>
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <nav className="hidden md:flex items-center gap-6">
+                    <nav className="hidden md:flex items-center gap-1">
                         {navigation.map((item) => (
                             <Link
                                 key={item.name}
                                 to={item.href}
-                                className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
+                                className="text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 px-3 py-2 rounded-lg transition-colors"
                             >
                                 {item.name}
                             </Link>
@@ -77,21 +77,34 @@ const Header = () => {
                     </nav>
 
                     {/* Desktop Actions */}
-                    <div className="hidden md:flex items-center gap-4">
+                    <div className="hidden md:flex items-center gap-3">
+                        {/* GitHub Link */}
+                        <a
+                            href="https://github.com/sarathoff/hug-pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hidden lg:flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                        >
+                            <Github className="h-4 w-4" />
+                            GitHub
+                        </a>
+
                         {user ? (
-                            <div className="flex items-center gap-4">
-                                <div className="hidden lg:flex flex-col items-end mr-2">
-                                    <span className="text-sm font-medium text-gray-900">{user.email?.split('@')[0]}</span>
-                                    <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full">
-                                        {user.credits} Credits
+                            <div className="flex items-center gap-3">
+                                {/* Credits badge */}
+                                <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 border border-violet-200 rounded-full">
+                                    <Zap className="h-3.5 w-3.5 text-violet-600" />
+                                    <span className="text-xs font-semibold text-violet-700">
+                                        {user.credits} credits
                                     </span>
                                 </div>
+
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-gray-100 hover:ring-blue-100 p-0">
-                                            <Avatar className="h-9 w-9">
+                                        <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-slate-100 hover:ring-violet-200 p-0 transition-all">
+                                            <Avatar className="h-8 w-8">
                                                 <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt={user.email} />
-                                                <AvatarFallback>
+                                                <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-semibold">
                                                     {user.email?.substring(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
@@ -100,9 +113,9 @@ const Header = () => {
                                     <DropdownMenuContent className="w-56" align="end" forceMount>
                                         <DropdownMenuLabel className="font-normal">
                                             <div className="flex flex-col space-y-1">
-                                                <p className="text-sm font-medium leading-none">{user.email}</p>
-                                                <p className="text-xs leading-none text-muted-foreground">
-                                                    {user.credits <= 5 ? 'Free Plan' : 'Pro Plan'}
+                                                <p className="text-sm font-medium leading-none text-slate-900">{user.email?.split('@')[0]}</p>
+                                                <p className="text-xs leading-none text-slate-500 truncate">
+                                                    {user.email}
                                                 </p>
                                             </div>
                                         </DropdownMenuLabel>
@@ -128,16 +141,19 @@ const Header = () => {
                                 </DropdownMenu>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                                 <Link to="/auth">
-                                    <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+                                    <Button
+                                        variant="ghost"
+                                        className="text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 h-9 px-4"
+                                    >
                                         Log in
                                     </Button>
                                 </Link>
                                 <Link to="/auth">
-                                    <Button className="bg-gray-900 hover:bg-gray-800 text-white shadow-lg shadow-gray-200">
-                                        Sign up
-                                        <ChevronRight className="ml-1.5 h-4 w-4" />
+                                    <Button className="h-9 px-4 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg shadow-sm shadow-violet-500/20 transition-all">
+                                        Get Started
+                                        <ChevronRight className="ml-1 h-4 w-4" />
                                     </Button>
                                 </Link>
                             </div>
@@ -150,9 +166,9 @@ const Header = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="text-gray-600"
+                            className="text-slate-600 hover:text-slate-900 h-9 w-9"
                         >
-                            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                         </Button>
                     </div>
                 </div>
@@ -160,57 +176,81 @@ const Header = () => {
 
             {/* Mobile Menu */}
             {isMobileMenuOpen && (
-                <div className="md:hidden border-t border-gray-100 bg-white">
-                    <div className="space-y-1 p-4">
+                <div className="md:hidden border-t border-slate-100 bg-white/95 backdrop-blur-xl">
+                    <div className="px-4 py-3 space-y-1">
                         {navigation.map((item) => (
                             <Link
                                 key={item.name}
                                 to={item.href}
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl transition-colors"
+                                className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
                             >
-                                <item.icon className="h-5 w-5 text-gray-400" />
+                                <item.icon className="h-4 w-4 text-slate-400" />
                                 {item.name}
                             </Link>
                         ))}
 
-                        <div className="border-t border-gray-100 my-4 pt-4">
-                            {user ? (
-                                <div className="space-y-3">
-                                    <div className="px-4 py-2 flex items-center gap-3 bg-blue-50 rounded-xl">
-                                        <Avatar className="h-10 w-10 border-2 border-white">
-                                            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} />
-                                            <AvatarFallback>{user.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col">
-                                            <span className="font-medium text-gray-900">{user.email}</span>
-                                            <span className="text-xs text-blue-600 font-bold">{user.credits} Credits Available</span>
-                                        </div>
+                        {/* GitHub in mobile menu */}
+                        <a
+                            href="https://github.com/sarathoff/hug-pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                        >
+                            <Github className="h-4 w-4 text-slate-400" />
+                            GitHub
+                        </a>
+                    </div>
+
+                    <div className="px-4 pb-4 border-t border-slate-100 mt-1 pt-3">
+                        {user ? (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-3 px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                                    <Avatar className="h-8 w-8 shrink-0">
+                                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} />
+                                        <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-semibold">
+                                            {user.email?.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-medium text-slate-900 truncate">{user.email}</span>
+                                        <span className="text-xs text-violet-600 font-semibold">{user.credits} Credits Available</span>
                                     </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
                                     <Button
                                         variant="outline"
-                                        className="w-full justify-start"
+                                        className="text-sm h-9 border-slate-200"
+                                        onClick={() => { navigate('/editor'); setIsMobileMenuOpen(false); }}
+                                    >
+                                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                                        Dashboard
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="text-sm h-9 border-slate-200 text-red-600 hover:text-red-700 hover:border-red-200"
                                         onClick={handleLogout}
                                     >
                                         <LogOut className="mr-2 h-4 w-4" />
                                         Log out
                                     </Button>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Link to="/auth">
-                                        <Button variant="outline" className="w-full">
-                                            Log in
-                                        </Button>
-                                    </Link>
-                                    <Link to="/auth">
-                                        <Button className="w-full bg-gray-900 text-white">
-                                            Sign up
-                                        </Button>
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                                <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>
+                                    <Button variant="outline" className="w-full h-9 text-sm border-slate-200 text-slate-700">
+                                        Log in
+                                    </Button>
+                                </Link>
+                                <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>
+                                    <Button className="w-full h-9 text-sm bg-violet-600 hover:bg-violet-700 text-white font-semibold">
+                                        Get Started
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

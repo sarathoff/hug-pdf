@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
-import { Check, Crown, Zap, ArrowRight, Shield, Loader2 } from 'lucide-react';
+import { Check, Zap, ArrowRight, Shield, Loader2, Crown, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -68,83 +66,110 @@ const PricingPage = () => {
   };
 
   return (
-    <div className="relative w-full h-full">
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-        <div className="text-center mb-16 space-y-4">
-          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
-            Simple, Transparent
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 ml-2">
-              Pricing
-            </span>
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+    <div className="min-h-screen bg-slate-50">
+      {/* Page header */}
+      <div className="bg-white border-b border-slate-100 py-16 px-4">
+        <div className="max-w-3xl mx-auto text-center space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-50 border border-violet-200 rounded-full text-xs font-semibold text-violet-700 uppercase tracking-wider">
+            <Star className="w-3.5 h-3.5" />
+            Simple pricing
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
+            Simple, Transparent Pricing
+          </h1>
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
             Perfect for research paper writers, resume creators, and digital marketers creating professional e-books.
           </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-100 cursor-default">
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16">
+        {/* Free tier highlight */}
+        <div className="mb-10 p-6 bg-emerald-50 border border-emerald-200 rounded-2xl max-w-2xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium mb-3">
             <Zap className="w-4 h-4" />
-            New users get 3 free credits to start!
+            Free Forever
           </div>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Start with 3 free credits</h3>
+          <p className="text-slate-600 text-sm">No credit card required. Sign up and get 3 PDFs to try all features.</p>
+          {!user && (
+            <Button
+              onClick={() => navigate('/auth')}
+              className="mt-4 h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm"
+            >
+              Get started free
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 gap-8 max-w-2xl mx-auto">
+        {/* Paid Plans */}
+        <div className="grid grid-cols-1 gap-6 max-w-2xl mx-auto">
           {plans.map((plan) => (
-            <Card
+            <div
               key={plan.id}
-              className={`relative border-2 transition-all duration-300 hover:shadow-xl ${plan.popular
-                ? 'border-purple-500 shadow-purple-100 scale-105 z-10'
-                : 'border-gray-100 hover:border-gray-200'
+              className={`relative bg-white rounded-2xl border-2 transition-all duration-300 ${plan.popular
+                ? 'border-violet-500 shadow-xl shadow-violet-500/10'
+                : 'border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
                 }`}
             >
               {plan.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-4 py-1 text-sm shadow-lg border-0">
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                  <div className="inline-flex items-center gap-1.5 px-4 py-1 bg-violet-600 text-white text-xs font-bold rounded-full shadow-lg">
+                    <Crown className="w-3.5 h-3.5" />
                     Most Popular
-                  </Badge>
+                  </div>
                 </div>
               )}
 
-              <CardHeader>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 rounded-2xl bg-purple-50 text-purple-600">
-                    <Zap className="w-6 h-6" />
+              <div className="p-7">
+                {/* Plan header */}
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`p-2 rounded-lg ${plan.popular ? 'bg-violet-100' : 'bg-slate-100'}`}>
+                        <Zap className={`w-4 h-4 ${plan.popular ? 'text-violet-600' : 'text-slate-500'}`} />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {plan.description || "Perfect for researchers, creators, and marketers"}
+                    </p>
                   </div>
-                  <Badge variant="outline" className="uppercase text-xs tracking-wider">
+                  <span className="inline-flex items-center px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full uppercase tracking-wide">
                     {plan.billing}
-                  </Badge>
-                </div>
-                <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
-                <CardDescription>
-                  {plan.description || "Perfect for researchers, creators, and marketers"}
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-bold text-gray-900">${plan.price}</span>
-                  <span className="text-gray-500 font-medium">/{plan.billing === 'monthly' ? 'mo' : 'one-time'}</span>
+                  </span>
                 </div>
 
-                <Separator />
+                {/* Price */}
+                <div className="flex items-baseline gap-1.5 mb-6">
+                  <span className="text-5xl font-bold text-slate-900">${plan.price}</span>
+                  <span className="text-slate-400 font-medium text-sm">
+                    / {plan.billing === 'monthly' ? 'month' : 'one-time'}
+                  </span>
+                </div>
 
-                <ul className="space-y-3">
+                <Separator className="mb-6" />
+
+                {/* Features */}
+                <ul className="space-y-3 mb-7">
                   {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-3 text-sm text-gray-600">
-                      <div className="mt-0.5 rounded-full bg-green-100 p-0.5">
-                        <Check className="w-3.5 h-3.5 text-green-600" />
+                    <li key={index} className="flex items-start gap-3 text-sm text-slate-600">
+                      <div className="mt-0.5 rounded-full bg-emerald-100 p-0.5 shrink-0">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
                       </div>
                       {feature}
                     </li>
                   ))}
                 </ul>
-              </CardContent>
 
-              <CardFooter>
+                {/* CTA */}
                 <Button
                   onClick={() => handlePurchase(plan.id)}
                   disabled={loading || (user && user.plan === plan.id)}
-                  className={`w-full h-12 text-base font-medium shadow-lg transition-all ${plan.popular
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
-                    : 'bg-gray-900 hover:bg-gray-800 text-white'
+                  className={`w-full h-12 text-base font-semibold rounded-xl transition-all ${plan.popular
+                    ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/20'
+                    : 'bg-slate-900 hover:bg-slate-800 text-white'
                     }`}
                 >
                   {loading ? (
@@ -161,16 +186,31 @@ const PricingPage = () => {
                     </>
                   )}
                 </Button>
-              </CardFooter>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
 
-        <div className="mt-16 text-center">
-          <div className="inline-flex items-center gap-2 text-gray-500 bg-gray-50 px-4 py-2 rounded-full text-sm">
-            <Shield className="w-4 h-4" />
+        {/* Trust badge */}
+        <div className="mt-10 text-center">
+          <div className="inline-flex items-center gap-2 text-slate-500 bg-white border border-slate-200 px-4 py-2.5 rounded-full text-sm shadow-sm">
+            <Shield className="w-4 h-4 text-slate-400" />
             <span>Secure payments powered by Dodo Payments</span>
           </div>
+        </div>
+
+        {/* FAQ or value props */}
+        <div className="mt-16 grid sm:grid-cols-3 gap-6 text-center">
+          {[
+            { title: 'No subscription', desc: 'Pay once, use forever. Credits never expire.' },
+            { title: 'Instant access', desc: 'Credits are added to your account immediately after payment.' },
+            { title: 'Cancel anytime', desc: 'No commitment, no hidden fees. Simple as that.' },
+          ].map((item, i) => (
+            <div key={i} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+              <h4 className="font-semibold text-slate-900 mb-1.5">{item.title}</h4>
+              <p className="text-sm text-slate-500">{item.desc}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

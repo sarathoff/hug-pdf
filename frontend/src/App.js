@@ -1,3 +1,7 @@
+// Copyright (c) 2026 HugPDF Contributors
+// SPDX-License-Identifier: MIT
+// https://github.com/sarathoff/hug-pdf
+
 import { useEffect } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -14,6 +18,9 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SuccessPage from "./pages/SuccessPage";
 import DeveloperPage from "./pages/DeveloperPage";
+import ApiDocsPage from "./pages/ApiDocsPage";
+import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
 import Layout from "./components/Layout";
 import CookieConsent from "./components/CookieConsent";
 
@@ -22,7 +29,6 @@ const API = `${BACKEND_URL}/api`;
 
 function App() {
   useEffect(() => {
-    // Test backend connection
     const testConnection = async () => {
       try {
         const response = await axios.get(`${API}/`);
@@ -49,6 +55,9 @@ function App() {
             <Route path="/payment/success" element={<Layout><PaymentSuccessPage /></Layout>} />
             <Route path="/success" element={<Layout><SuccessPage /></Layout>} />
             <Route path="/developer" element={<Layout><DeveloperPage /></Layout>} />
+            <Route path="/api-docs" element={<Layout><ApiDocsPage /></Layout>} />
+            <Route path="/blog" element={<Layout><BlogPage /></Layout>} />
+            <Route path="/blog/:slug" element={<Layout><BlogPostPage /></Layout>} />
 
             {/* Pages with Custom/Standalone Layout */}
             <Route path="/editor" element={<EditorPage />} />

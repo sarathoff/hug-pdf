@@ -1,352 +1,269 @@
 <div align="center">
   <img src="frontend/public/logo.png" alt="HugPDF Logo" width="120" height="120">
-  
+
   # HugPDF
-  
-  ### AI-Powered PDF Generation Platform
-  
-  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+  ### AI-Powered PDF Generation Platform · Open Core
+
+  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+  [![Open Core](https://img.shields.io/badge/Model-Open%20Core-brightgreen.svg)](https://en.wikipedia.org/wiki/Open-core_model)
   [![React](https://img.shields.io/badge/React-18.x-61dafb.svg)](https://reactjs.org/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688.svg)](https://fastapi.tiangolo.com/)
   [![Python](https://img.shields.io/badge/Python-3.11-3776ab.svg)](https://www.python.org/)
-  
-  [Live Demo](https://hugpdf.com) · [Documentation](./API_REFERENCE.md) · [Report Bug](https://github.com/yourusername/hugpdf/issues)
+
+  [Live App](https://hugpdf.app) · [API Docs](https://hugpdf.app/api-docs) · [Blog](https://hugpdf.app/blog) · [Report Bug](https://github.com/sarathoff/hug-pdf/issues)
 </div>
 
 ---
 
-## 📖 About
+## What is HugPDF?
 
-HugPDF is a modern, AI-powered PDF generation platform that transforms natural language prompts into professionally formatted PDF documents. Built with Google's Gemini AI and LaTeX, it offers three distinct modes for different use cases: normal documents, research papers with citations, and comprehensive e-books.
+HugPDF is an **AI-powered PDF generation platform** that turns natural language prompts into professionally formatted PDF documents using Google Gemini AI and LaTeX.
 
-### ✨ Key Features
+This repository follows the **[Open-Core model](https://en.wikipedia.org/wiki/Open-core_model)** — the same strategy used by [Supabase](https://github.com/supabase/supabase), [Vercel](https://vercel.com/oss), and [GitLab](https://about.gitlab.com/company/stewardship/).
 
-- 🤖 **AI-Powered Generation** - Convert natural language to beautifully formatted PDFs
-- 📚 **Multiple Modes** - Normal, Research (with citations), and E-book (20+ pages)
-- 🔑 **Developer API** - RESTful API with comprehensive documentation
-- 💳 **Credit System** - Flexible pay-per-use model
-- 🎨 **Live Preview** - Real-time PDF preview with LaTeX editing
-- 🔐 **Secure Authentication** - Supabase Auth with Google OAuth
-- 📊 **Usage Analytics** - Track API usage and credit consumption
-- 🎯 **Rate Limiting** - Tiered rate limits (Free/Pro)
-- 🌐 **Responsive Design** - Works seamlessly on desktop and mobile
+You can **self-host the core for free** with your own API keys, or use the **managed service at [hugpdf.app](https://hugpdf.app)** — pay only per document, no infrastructure to manage.
 
 ---
 
-## 🚀 Quick Start
+## Open-Core Model
+
+### What's Open Source (MIT Licensed)
+
+| Component | Description |
+|---|---|
+| React Frontend UI | All pages, components, layouts |
+| Prompt → LaTeX Engine | Core Gemini AI integration |
+| Standard PDF Templates | Normal, Research, E-book modes |
+| PDF Compilation Service | LaTeX → PDF pipeline |
+| API Key Management | CRUD for developer keys |
+| REST API v1 | `/api/v1/generate` endpoint |
+| Blog & API Docs pages | Full documentation site |
+
+### What's Proprietary (Managed Service Only)
+
+| Feature | Reason |
+|---|---|
+| Billing & Credit System | Dodo Payments integration |
+| Advanced LaTeX templates | Proprietary visual quality |
+| Job-description resume matching | AI pipeline |
+| LinkedIn profile extraction | LinkedIn API compliance |
+| High-availability infrastructure | AWS ECS + CDN |
+| Priority support & SLA | Business commitment |
+
+---
+
+## Why use the Managed API instead of self-hosting?
+
+Self-hosting requires: Python 3.11+, LaTeX (`texlive-full` = ~3GB), pdflatex, Google Cloud credentials, Gemini API rate limit management, Supabase migrations, CORS config, rate limiting, and server costs.
+
+The managed API removes all of that:
+
+```bash
+# Self-host: 2+ hours setup, ongoing maintenance
+# Managed: 5 minutes to your first PDF
+curl -X POST https://api.hugpdf.app/api/v1/generate \
+  -H "Authorization: Bearer YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Invoice for consulting services, $2500"}' \
+  --output invoice.pdf
+```
+
+**Pricing:** 3 PDFs free. Additional credits from $2. [See pricing →](https://hugpdf.app/pricing)
+
+---
+
+## Quick Start (Self-Hosted)
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 18+
 - Python 3.11+
+- LaTeX: `sudo apt install texlive-full` (Ubuntu) or `brew install --cask mactex` (macOS)
 - Supabase account
 - Google Gemini API key
 
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/yourusername/hugpdf.git
-   cd hugpdf
-   ```
-
-2. **Backend Setup**
-
-   ```bash
-   cd backend
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. **Frontend Setup**
-
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-4. **Environment Configuration**
-
-   Create `.env` files in both `backend` and `frontend` directories:
-
-   **Backend `.env`:**
-
-   ```env
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-   GEMINI_API_KEY=your_gemini_api_key
-   JWT_SECRET=your_jwt_secret
-   ```
-
-   **Frontend `.env`:**
-
-   ```env
-   REACT_APP_BACKEND_URL=http://localhost:8000
-   REACT_APP_SUPABASE_URL=your_supabase_url
-   REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-
-5. **Database Setup**
-
-   ```bash
-   # Run SQL scripts in Supabase SQL Editor
-   # 1. backend/database/schema.sql
-   # 2. backend/database/api_schema.sql
-   ```
-
-6. **Run the Application**
-
-   **Backend:**
-
-   ```bash
-   cd backend
-   python -m uvicorn server:app --reload
-   ```
-
-   **Frontend:**
-
-   ```bash
-   cd frontend
-   npm start
-   ```
-
-   Visit `http://localhost:3000` 🎉
-
----
-
-## 🏗️ Architecture
-
-### Tech Stack
-
-**Frontend:**
-
-- React 18 with React Router
-- Tailwind CSS + shadcn/ui components
-- Axios for API calls
-- Supabase Auth
-
-**Backend:**
-
-- FastAPI (Python)
-- Google Gemini AI
-- LaTeX (pdflatex)
-- Supabase (PostgreSQL)
-
-**Infrastructure:**
-
-- Vercel (Frontend)
-- AWS ECS Fargate (Backend)
-- Supabase (Database & Auth)
-
-### Project Structure
-
-```
-hugpdf/
-├── frontend/                 # React application
-│   ├── src/
-│   │   ├── components/      # Reusable UI components
-│   │   ├── pages/           # Page components
-│   │   ├── context/         # React context (Auth)
-│   │   └── lib/             # Utilities & Supabase client
-│   └── public/              # Static assets
-│
-├── backend/                 # FastAPI application
-│   ├── services/            # Business logic
-│   │   ├── gemini_service.py
-│   │   ├── pdf_service.py
-│   │   ├── api_key_service.py
-│   │   └── auth_service.py
-│   ├── database/            # SQL schemas
-│   ├── core/                # Dependencies & config
-│   └── server.py            # Main FastAPI app
-│
-├── API_SETUP_GUIDE.md       # API setup documentation
-├── API_REFERENCE.md         # Complete API reference
-└── README.md                # This file
-```
-
----
-
-## 🔌 API Usage
-
-HugPDF provides a RESTful API for programmatic PDF generation.
-
-### Quick Example
+### 1. Clone
 
 ```bash
-curl -X POST https://api.hugpdf.com/api/v1/generate \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+git clone https://github.com/sarathoff/hug-pdf.git
+cd hug-pdf
+```
+
+### 2. Backend
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env            # fill in your keys
+```
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env            # set REACT_APP_BACKEND_URL=http://localhost:8000
+```
+
+### 4. Database
+
+Run these SQL files in your Supabase SQL Editor in order:
+
+```
+backend/database/schema.sql
+backend/database/api_schema.sql
+```
+
+### 5. Run
+
+```bash
+# Terminal 1
+cd backend && uvicorn server:app --reload --port 8000
+
+# Terminal 2
+cd frontend && npm start
+```
+
+Open `http://localhost:3000`
+
+---
+
+## Environment Variables
+
+**`backend/.env`** (see `backend/.env.example`):
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+GEMINI_API_KEY=your_gemini_api_key
+CORS_ORIGINS=http://localhost:3000
+```
+
+**`frontend/.env`** (see `frontend/.env.example`):
+
+```env
+REACT_APP_BACKEND_URL=http://localhost:8000
+REACT_APP_SUPABASE_URL=https://your-project.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+---
+
+## Project Structure
+
+```
+hug-pdf/
+├── frontend/                       # React 18 + Tailwind + shadcn/ui
+│   └── src/
+│       ├── pages/
+│       │   ├── HomePage.jsx        # Landing page
+│       │   ├── ApiDocsPage.jsx     # API documentation
+│       │   ├── BlogPage.jsx        # Blog listing
+│       │   ├── BlogPostPage.jsx    # Individual blog posts
+│       │   ├── DeveloperPage.jsx   # API key management
+│       │   ├── PricingPage.jsx     # Credits & billing
+│       │   └── ...                 # About, Contact, Auth, etc.
+│       ├── components/
+│       │   ├── Header.jsx          # Navigation
+│       │   ├── Footer.jsx          # Footer with open-source links
+│       │   └── ...
+│       └── context/AuthContext.jsx
+│
+├── backend/                        # FastAPI + Python 3.11
+│   ├── services/
+│   │   ├── gemini_service.py       # AI prompt → LaTeX
+│   │   ├── pdf_service.py          # LaTeX → PDF
+│   │   ├── api_key_service.py      # API key management
+│   │   └── rate_limiter_service.py
+│   ├── routers/ai.py               # AI generation routes
+│   ├── routers/pdf.py              # PDF compilation routes
+│   ├── core/config.py              # Settings
+│   ├── server.py                   # FastAPI app + v1 API
+│   └── .env.example
+│
+├── .github/
+│   ├── ISSUE_TEMPLATE/             # Bug + feature templates
+│   ├── workflows/ci.yml            # CI pipeline
+│   └── PULL_REQUEST_TEMPLATE.md
+│
+├── LICENSE                         # MIT License
+├── CONTRIBUTING.md                 # How to contribute
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md                     # Vulnerability reporting
+└── API_REFERENCE.md                # Full API reference
+```
+
+**Tech Stack:**
+- **Frontend:** React 18, React Router v6, Tailwind CSS, shadcn/ui, Supabase Auth, Inter font
+- **Backend:** FastAPI, Google Gemini 1.5 Pro, pdflatex, Supabase PostgreSQL
+- **Managed Infra:** AWS ECS Fargate, CloudFront CDN, Supabase
+
+---
+
+## API
+
+```bash
+# Generate a PDF — 1 credit per call
+curl -X POST https://api.hugpdf.app/api/v1/generate \
+  -H "Authorization: Bearer pdf_live_YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Create a professional resume for John Doe"}' \
+  -d '{"prompt": "Professional resume for a senior software engineer", "mode": "normal"}' \
   --output resume.pdf
 ```
 
-### Python Example
+**Modes:** `normal` (1–5 pages) · `research` (10–15 pages with citations) · `ebook` (20–50 pages)
 
-```python
-import requests
+Full reference: [hugpdf.app/api-docs](https://hugpdf.app/api-docs) · [API_REFERENCE.md](API_REFERENCE.md)
 
-response = requests.post(
-    "https://api.hugpdf.com/api/v1/generate",
-    headers={"Authorization": "Bearer YOUR_API_KEY"},
-    json={"prompt": "Create a research paper on AI ethics", "mode": "research"}
-)
+---
 
-with open("paper.pdf", "wb") as f:
-    f.write(response.content)
+## Blog & Tutorials
+
+- [Using HugPDF API on Windows](https://hugpdf.app/blog/hugpdf-api-windows)
+- [Using HugPDF API on macOS](https://hugpdf.app/blog/hugpdf-api-macos)
+- [Using HugPDF API on Linux](https://hugpdf.app/blog/hugpdf-api-linux)
+- [Automate PDFs with Make.com](https://hugpdf.app/blog/hugpdf-make-automation)
+- [Build PDF workflows with n8n](https://hugpdf.app/blog/hugpdf-n8n-workflow)
+- [Connect HugPDF via Zapier](https://hugpdf.app/blog/hugpdf-zapier-automation)
+
+---
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+```bash
+git checkout -b feat/your-feature
+git commit -m 'feat: describe your change'
+git push origin feat/your-feature
+# open a PR
 ```
 
-### Credit System
-
-- Each PDF generation costs **1 credit**
-- Credits are shared between web app and API
-- Response includes `X-Credits-Remaining` header
-- Purchase credits via the web interface
-
-For complete API documentation, see [API_REFERENCE.md](./API_REFERENCE.md).
+Good first issues: prompt templates, document types, UI bugs, docs, tests.
 
 ---
 
-## 🎯 Features in Detail
+## License
 
-### 1. Normal Mode
+Copyright (c) 2026 HugPDF Contributors
 
-Generate standard documents like resumes, invoices, letters, and forms.
+The **open-source core** is released under the [MIT License](LICENSE).
 
-### 2. Research Mode (Pro)
-
-Create research papers with:
-
-- Web research integration (Perplexity API)
-- Automatic citations
-- Bibliography generation
-- 10-15 pages
-
-### 3. E-book Mode (Pro)
-
-Generate comprehensive e-books with:
-
-- Chapter organization
-- Table of contents
-- Image integration
-- 20-50 pages
-
-### 4. Developer Portal
-
-- API key management
-- Interactive documentation
-- Usage analytics
-- Code examples (cURL, Python, JavaScript)
+The **proprietary managed service** (billing, advanced templates, enterprise infrastructure) is not covered by this license.
 
 ---
 
-## 🚢 Deployment
+## Acknowledgments
 
-### Frontend (Vercel)
-
-1. **Connect Repository**
-   - Import project to Vercel
-   - Select `frontend` as root directory
-
-2. **Configure Build**
-
-   ```
-   Build Command: npm run build
-   Output Directory: build
-   Install Command: npm install
-   ```
-
-3. **Environment Variables**
-   - Add all `REACT_APP_*` variables
-   - Deploy!
-
-### Backend (AWS ECS Fargate)
-
-See [aws_deployment_steps.md](./aws_deployment_steps.md) for detailed instructions.
-
-**Quick Steps:**
-
-1. Build Docker image
-2. Push to ECR
-3. Create ECS task definition
-4. Deploy to Fargate
-5. Configure ALB
-
----
-
-## 💳 Pricing
-
-| Tier              | Price  | Credits | Features                       |
-| ----------------- | ------ | ------- | ------------------------------ |
-| **Free**          | $0     | 5       | Normal mode, 10 req/min        |
-| **Credit Top-up** | $2     | 20      | All features, 100 req/min      |
-| **Pro**           | $10/mo | 100     | All features, priority support |
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow existing code style
-- Add tests for new features
-- Update documentation
-- Keep commits atomic and descriptive
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- [Google Gemini](https://ai.google.dev/) - AI model
-- [Supabase](https://supabase.com/) - Backend infrastructure
-- [shadcn/ui](https://ui.shadcn.com/) - UI components
-- [FastAPI](https://fastapi.tiangolo.com/) - Backend framework
-- [LaTeX](https://www.latex-project.org/) - Document typesetting
-
----
-
-## 📧 Contact
-
-- **Website:** [hugpdf.com](https://hugpdf.com)
-- **Email:** support@hugpdf.com
-- **GitHub:** [@yourusername](https://github.com/yourusername)
-- **Twitter:** [@hugpdf](https://twitter.com/hugpdf)
-
----
-
-## 🗺️ Roadmap
-
-- [ ] Webhook support for async generation
-- [ ] More document templates
-- [ ] Collaborative editing
-- [ ] Custom branding options
-- [ ] Mobile app (iOS/Android)
-- [ ] Multi-language support
-- [ ] Advanced analytics dashboard
+- [Google Gemini](https://ai.google.dev/) · [Supabase](https://supabase.com/) · [shadcn/ui](https://ui.shadcn.com/) · [LaTeX Project](https://www.latex-project.org/)
 
 ---
 
 <div align="center">
-  
-  **⭐ Star this repo if you find it helpful!**
-  
-  Made with ❤️ by the HugPDF Team
-  
+  Made with care by <a href="https://github.com/sarathoff">@sarathoff</a> and contributors<br>
+  <a href="https://hugpdf.app">hugpdf.app</a> · <a href="https://github.com/sarathoff/hug-pdf">GitHub</a> · <a href="https://hugpdf.app/blog">Blog</a>
 </div>

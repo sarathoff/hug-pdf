@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
-import { 
-  Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight, 
-  Search, Book, Lock, X, Upload, Target, Presentation, 
-  CheckCircle2, Zap, LayoutTemplate, GraduationCap, Building2, PenTool, Mic
+import {
+  Sparkles, FileText, Briefcase, BarChart3, Receipt, ArrowRight,
+  Search, Book, Lock, X, Upload, Target, Presentation,
+  Zap, GraduationCap, Building2, PenTool, Mic,
+  Code2, BookOpen, Github,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import VoiceRecorder from '../components/VoiceRecorder';
@@ -16,7 +16,7 @@ const HomePage = () => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [mode, setMode] = useState('normal'); // 'normal' | 'research' | 'ebook' | 'ppt'
-  
+
   // PPT Mode States
   const [pptInputMode, setPptInputMode] = useState('topic'); // 'topic' or 'content'
   const [pptTopic, setPptTopic] = useState('');
@@ -31,7 +31,7 @@ const HomePage = () => {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   // Use Case Tab State
   const [activeTab, setActiveTab] = useState('students');
 
@@ -64,25 +64,25 @@ const HomePage = () => {
         navigate('/auth');
         return;
       }
-      
+
       if (mode !== 'ppt' && user.credits <= 0) {
         navigate('/pricing');
         return;
       }
-      
+
       setIsGenerating(true);
-      
+
       if (mode === 'ppt') {
-        navigate('/editor', { 
-            state: { 
-                mode: 'ppt',
-                pptConfig: {
-                    topic: pptInputMode === 'topic' ? pptTopic : null,
-                    content: pptInputMode === 'content' ? pptContent : null,
-                    numSlides: 10,
-                    style: pptStyle
-                }
-            } 
+        navigate('/editor', {
+          state: {
+            mode: 'ppt',
+            pptConfig: {
+              topic: pptInputMode === 'topic' ? pptTopic : null,
+              content: pptInputMode === 'content' ? pptContent : null,
+              numSlides: 10,
+              style: pptStyle
+            }
+          }
         });
       } else {
         navigate('/editor', { state: { initialPrompt: prompt, mode: mode } });
@@ -112,7 +112,7 @@ const HomePage = () => {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/optimize-resume`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user.token || localStorage.getItem('token')}` 
+          'Authorization': `Bearer ${user.token || localStorage.getItem('token')}`
         },
         body: formData
       });
@@ -126,14 +126,14 @@ const HomePage = () => {
       setShowResumeOptimizerModal(false);
       setResumeFile(null);
       setJobDescription('');
-      navigate('/editor', { 
-        state: { 
+      navigate('/editor', {
+        state: {
           initialLatex: data.latex_content,
           mode: 'normal',
           skipGeneration: true,
           atsScore: data.ats_score,
           improvements: data.improvements
-        } 
+        }
       });
     } catch (error) {
       console.error('Resume optimization error:', error);
@@ -162,9 +162,24 @@ const HomePage = () => {
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center space-y-6 md:space-y-8 mb-12 md:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4 text-violet-600" />
-              <span className="text-xs md:text-sm font-medium text-slate-600">The #1 AI Writing Partner for Professionals</span>
+            {/* Dual badges */}
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <a
+                href="https://github.com/sarathoff/hug-pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white text-xs font-medium rounded-full hover:bg-slate-700 transition-colors"
+              >
+                <Github className="w-3 h-3" />
+                Open Source
+              </a>
+              <Link
+                to="/api-docs"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-violet-100 text-violet-700 text-xs font-medium rounded-full hover:bg-violet-200 transition-colors"
+              >
+                <Zap className="w-3 h-3" />
+                Free API
+              </Link>
             </div>
 
             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 max-w-4xl mx-auto leading-tight md:leading-[1.1]">
@@ -172,7 +187,7 @@ const HomePage = () => {
             </h1>
 
             <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed px-4">
-              Create professional PDFs, E-books, and Presentations in seconds using advanced AI. 
+              Create professional PDFs, E-books, and Presentations in seconds using advanced AI.
               No design skills required.
             </p>
           </div>
@@ -194,11 +209,10 @@ const HomePage = () => {
                       <button
                         key={m.id}
                         onClick={() => handleModeChange(m.id)}
-                        className={`flex items-center justify-center gap-2 px-3 md:px-5 py-2.5 rounded-xl md:rounded-full text-sm font-medium transition-all duration-300 ${
-                          mode === m.id
-                            ? 'bg-white text-violet-700 shadow-sm ring-1 ring-black/5'
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
-                        }`}
+                        className={`flex items-center justify-center gap-2 px-3 md:px-5 py-2.5 rounded-xl md:rounded-full text-sm font-medium transition-all duration-300 ${mode === m.id
+                          ? 'bg-white text-violet-700 shadow-sm ring-1 ring-black/5'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
+                          }`}
                       >
                         <m.icon className="w-4 h-4 shrink-0" />
                         <span>{m.label}</span>
@@ -218,9 +232,8 @@ const HomePage = () => {
                         <button
                           key={type}
                           onClick={() => setPptInputMode(type)}
-                          className={`flex-1 md:flex-none px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
-                            pptInputMode === type ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'
-                          }`}
+                          className={`flex-1 md:flex-none px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${pptInputMode === type ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'
+                            }`}
                         >
                           From {type.charAt(0).toUpperCase() + type.slice(1)}
                         </button>
@@ -228,9 +241,9 @@ const HomePage = () => {
                     </div>
                     {pptInputMode === 'topic' ? (
                       <div className="relative group">
-                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <Sparkles className="h-5 w-5 text-violet-400 group-focus-within:text-violet-600 transition-colors" />
-                         </div>
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Sparkles className="h-5 w-5 text-violet-400 group-focus-within:text-violet-600 transition-colors" />
+                        </div>
                         <input
                           type="text"
                           value={pptTopic}
@@ -259,9 +272,9 @@ const HomePage = () => {
                       onChange={(e) => setPrompt(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder={
-                        mode === 'research' ? "Research topic (e.g., Quantum Computing Trends)..." : 
-                        mode === 'ebook' ? "E-book title (e.g., The Guide to Digital Marketing)..." :
-                        "Describe your document (e.g., Resume for Senior Developer)..."
+                        mode === 'research' ? "Research topic (e.g., Quantum Computing Trends)..." :
+                          mode === 'ebook' ? "E-book title (e.g., The Guide to Digital Marketing)..." :
+                            "Describe your document (e.g., Resume for Senior Developer)..."
                       }
                       className="w-full pl-12 pr-12 md:pr-32 py-3 md:py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-violet-500 focus:bg-white text-base md:text-lg outline-none transition-all placeholder:text-slate-400 truncate"
                     />
@@ -277,7 +290,7 @@ const HomePage = () => {
 
                 {/* Submit Button */}
                 <div className="mt-6">
-                   <Button
+                  <Button
                     onClick={handleCreatePDF}
                     disabled={isGenerating || (mode === 'ppt' && (!pptTopic && !pptContent)) || (mode !== 'ppt' && !prompt.trim())}
                     className="w-full h-12 md:h-14 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-base md:text-lg font-semibold shadow-lg shadow-violet-500/25 transition-all transform active:scale-[0.99]"
@@ -289,7 +302,7 @@ const HomePage = () => {
                       </span>
                     ) : (
                       <span className="flex items-center gap-2">
-                        Generate {mode === 'ppt' ? 'Presentation' : 'Document'} 
+                        Generate {mode === 'ppt' ? 'Presentation' : 'Document'}
                         <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
                       </span>
                     )}
@@ -300,43 +313,96 @@ const HomePage = () => {
 
             {/* Quick Actions Strip */}
             <div className="flex gap-3 md:gap-4 mt-6 overflow-x-auto pb-4 no-scrollbar px-1 -mx-4 md:mx-0 px-4 md:px-0 scroll-smooth">
-               {/* Resume Optimizer Button */}
-               <button 
-                  onClick={() => setShowResumeOptimizerModal(true)}
+              {/* Resume Optimizer Button */}
+              <button
+                onClick={() => setShowResumeOptimizerModal(true)}
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap shrink-0"
+              >
+                <Target className="w-4 h-4 text-violet-500" />
+                <span className="text-sm font-medium">Optimize Resume</span>
+              </button>
+              {examplePrompts.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPrompt(p.text)}
                   className="flex items-center gap-2 px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap shrink-0"
                 >
-                  <Target className="w-4 h-4 text-violet-500" />
-                  <span className="text-sm font-medium">Optimize Resume</span>
+                  <p.icon className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm font-medium text-slate-600">{p.text.split(' ').slice(0, 3).join(' ')}...</span>
                 </button>
-                {examplePrompts.map((p, i) => (
-                  <button 
-                    key={i}
-                    onClick={() => setPrompt(p.text)}
-                    className="flex items-center gap-2 px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors whitespace-nowrap shrink-0"
-                  >
-                    <p.icon className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm font-medium text-slate-600">{p.text.split(' ').slice(0, 3).join(' ')}...</span>
-                  </button>
-                ))}
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Trusted By Marquee */}
-      <div className="border-y border-slate-200 bg-white py-12 overflow-hidden">
-        <p className="text-center text-sm font-semibold text-slate-500 uppercase tracking-wider mb-8">Trusted by teams from innovative companies</p>
-        <div className="relative flex overflow-x-hidden group">
-          <div className="flex animate-marquee whitespace-nowrap gap-16 px-8">
-            {['TechFlow', 'GlobalSync', 'InnovateLabs', 'FutureScales', 'DataMind', 'CloudPeak', 'NextGen', 'SmartSystems'].map((name, i) => (
-              <span key={i} className="text-2xl font-bold text-slate-300 flex items-center gap-2">
-                <div className="w-8 h-8 bg-slate-200 rounded-md" /> {name}
-              </span>
+      {/* Built for Everyone Section */}
+      <div className="border-y border-slate-100 bg-slate-50/50 py-10 px-4">
+        <div className="max-w-5xl mx-auto">
+          <p className="text-center text-xs font-semibold text-slate-400 uppercase tracking-widest mb-6">
+            Built for everyone who creates documents
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              { icon: GraduationCap, label: 'Students', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+              { icon: Search, label: 'Researchers', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+              { icon: Briefcase, label: 'Job Seekers', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+              { icon: Building2, label: 'Business Teams', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+              { icon: Code2, label: 'Developers', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+              { icon: PenTool, label: 'Content Creators', color: 'bg-pink-50 text-pink-700 border-pink-200' },
+              { icon: BookOpen, label: 'Academics', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+              { icon: Zap, label: 'Startup Founders', color: 'bg-violet-50 text-violet-700 border-violet-200' },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium ${item.color}`}
+              >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </div>
             ))}
-             {['TechFlow', 'GlobalSync', 'InnovateLabs', 'FutureScales', 'DataMind', 'CloudPeak', 'NextGen', 'SmartSystems'].map((name, i) => (
-              <span key={`dup-${i}`} className="text-2xl font-bold text-slate-300 flex items-center gap-2">
-                <div className="w-8 h-8 bg-slate-200 rounded-md" /> {name}
-              </span>
+          </div>
+        </div>
+      </div>
+
+      {/* How it Works Section */}
+      <div className="py-20 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">How it works</h2>
+            <p className="text-slate-500 text-lg">From prompt to professional PDF in three steps.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8 relative">
+            {/* Connector line for desktop */}
+            <div className="hidden md:block absolute top-10 left-1/3 right-1/3 h-px bg-gradient-to-r from-violet-200 via-violet-400 to-violet-200" />
+            {[
+              {
+                step: '01',
+                title: 'Describe your document',
+                desc: 'Type a simple prompt describing what you need — a resume, research paper, invoice, or e-book.',
+                icon: FileText,
+              },
+              {
+                step: '02',
+                title: 'AI generates LaTeX',
+                desc: 'Our Gemini-powered engine converts your prompt into beautifully formatted LaTeX code instantly.',
+                icon: Sparkles,
+              },
+              {
+                step: '03',
+                title: 'Download your PDF',
+                desc: 'Preview, edit, and download your professional-grade PDF. No design skills required.',
+                icon: ArrowRight,
+              },
+            ].map((s, i) => (
+              <div key={i} className="relative flex flex-col items-center text-center p-6">
+                <div className="w-20 h-20 bg-violet-50 border-2 border-violet-200 rounded-2xl flex items-center justify-center mb-4 relative z-10">
+                  <s.icon className="w-8 h-8 text-violet-600" />
+                </div>
+                <span className="text-xs font-bold text-violet-400 tracking-widest mb-2">{s.step}</span>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{s.title}</h3>
+                <p className="text-slate-500 text-sm leading-relaxed">{s.desc}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -345,90 +411,138 @@ const HomePage = () => {
       {/* Features Grid */}
       <div className="py-24 px-4 bg-slate-50">
         <div className="max-w-6xl mx-auto">
-           <div className="text-center mb-16 space-y-4">
-             <h2 className="text-3xl md:text-5xl font-bold text-slate-900">Everything you need to create</h2>
-             <p className="text-lg text-slate-600 max-w-2xl mx-auto">From simple docs to complex research papers, we've got you covered.</p>
-           </div>
-           
-           <div className="grid md:grid-cols-3 gap-8">
-              {[
-                { icon: Zap, title: "Instant Generation", desc: "Turn simple prompts into full documents with proper formatting and structure in seconds.", color: "text-amber-500", bg: "bg-amber-50" },
-                { icon: Search, title: "Deep Research", desc: "Powered by Perplexity, find accurate citations and sources for academic papers.", color: "text-purple-500", bg: "bg-purple-50" },
-                { icon: Presentation, title: "Smart Decks", desc: "Convert text into beautiful presentation slides ready for your next meeting.", color: "text-blue-500", bg: "bg-blue-50" }
-              ].map((f, i) => (
-                <div key={i} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-violet-100 transition-all duration-300 group">
-                   <div className={`w-14 h-14 ${f.bg} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                      <f.icon className={`w-7 h-7 ${f.color}`} />
-                   </div>
-                   <h3 className="text-xl font-bold text-slate-900 mb-3">{f.title}</h3>
-                   <p className="text-slate-600 leading-relaxed">{f.desc}</p>
+          <div className="text-center mb-16 space-y-4">
+            <h2 className="text-3xl md:text-5xl font-bold text-slate-900">Everything you need to create</h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">From simple docs to complex research papers, we've got you covered.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { icon: Zap, title: "Instant Generation", desc: "Turn simple prompts into full documents with proper formatting and structure in seconds.", color: "text-amber-500", bg: "bg-amber-50" },
+              { icon: Search, title: "Deep Research", desc: "Powered by Perplexity, find accurate citations and sources for academic papers.", color: "text-purple-500", bg: "bg-purple-50" },
+              { icon: Presentation, title: "Smart Decks", desc: "Convert text into beautiful presentation slides ready for your next meeting.", color: "text-blue-500", bg: "bg-blue-50" }
+            ].map((f, i) => (
+              <div key={i} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-violet-100 transition-all duration-300 group">
+                <div className={`w-14 h-14 ${f.bg} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                  <f.icon className={`w-7 h-7 ${f.color}`} />
                 </div>
-              ))}
-           </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{f.title}</h3>
+                <p className="text-slate-600 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Row */}
+      <div className="bg-slate-900 py-16 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {[
+              { value: '10K+', label: 'Documents generated' },
+              { value: '3', label: 'Generation modes' },
+              { value: 'MIT', label: 'Open source license' },
+              { value: 'Free', label: 'API tier available' },
+            ].map((stat, i) => (
+              <div key={i}>
+                <div className="text-3xl md:text-4xl font-bold text-white mb-1">{stat.value}</div>
+                <div className="text-slate-400 text-sm">{stat.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Use Cases Section */}
       <div className="py-24 px-4 bg-white border-y border-slate-100">
-         <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-               <div className="space-y-8">
-                  <h2 className="text-3xl md:text-5xl font-bold text-slate-900">Tailored for your workflow</h2>
-                  <div className="space-y-4">
-                     {[
-                       { id: 'students', icon: GraduationCap, label: 'For Students', desc: 'Create essays, research papers, and study notes 10x faster.' },
-                       { id: 'business', icon: Building2, label: 'For Business', desc: 'Generate reports, proposals, and presentations instantly.' },
-                       { id: 'creators', icon: PenTool, label: 'For Creators', desc: 'Write e-books and guides to grow your audience.' }
-                     ].map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => setActiveTab(t.id)}
-                          className={`w-full flex items-start text-left gap-4 p-6 rounded-xl border transition-all duration-300 ${
-                            activeTab === t.id 
-                            ? 'bg-violet-50 border-violet-200 shadow-md transform scale-[1.02]' 
-                            : 'bg-white border-slate-100 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className={`p-3 rounded-lg ${activeTab === t.id ? 'bg-violet-100' : 'bg-slate-100'}`}>
-                             <t.icon className={`w-6 h-6 ${activeTab === t.id ? 'text-violet-600' : 'text-slate-500'}`} />
-                          </div>
-                          <div>
-                             <h4 className={`text-lg font-bold ${activeTab === t.id ? 'text-violet-900' : 'text-slate-700'}`}>{t.label}</h4>
-                             <p className="text-slate-500 mt-1">{t.desc}</p>
-                          </div>
-                        </button>
-                     ))}
-                  </div>
-               </div>
-               <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-violet-600/20 to-blue-500/20 rounded-3xl blur-2xl" />
-                  <div className="relative bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-800 aspect-square flex flex-col items-center justify-center text-center space-y-6">
-                      <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center">
-                         {activeTab === 'students' && <GraduationCap className="w-10 h-10 text-violet-400" />}
-                         {activeTab === 'business' && <Building2 className="w-10 h-10 text-blue-400" />}
-                         {activeTab === 'creators' && <Book className="w-10 h-10 text-amber-400" />}
-                      </div>
-                      <div>
-                         <h3 className="text-2xl font-bold text-white mb-2">
-                           {activeTab === 'students' ? 'A+ Papers in Minutes' : activeTab === 'business' ? 'Close Deals Faster' : 'Publish Besellers'}
-                         </h3>
-                         <p className="text-slate-400 max-w-xs mx-auto">
-                            Stop staring at a blank page. Let our AI handle the formatting, citations, and structure so you can focus on the ideas.
-                         </p>
-                      </div>
-                      <div className="flex gap-2">
-                         <div className="w-2 h-2 rounded-full bg-slate-700" />
-                         <div className="w-2 h-2 rounded-full bg-slate-700" />
-                         <div className="w-12 h-2 rounded-full bg-violet-500" />
-                      </div>
-                  </div>
-               </div>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
+              <h2 className="text-3xl md:text-5xl font-bold text-slate-900">Tailored for your workflow</h2>
+              <div className="space-y-4">
+                {[
+                  { id: 'students', icon: GraduationCap, label: 'For Students', desc: 'Create essays, research papers, and study notes 10x faster.' },
+                  { id: 'business', icon: Building2, label: 'For Business', desc: 'Generate reports, proposals, and presentations instantly.' },
+                  { id: 'creators', icon: PenTool, label: 'For Creators', desc: 'Write e-books and guides to grow your audience.' }
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveTab(t.id)}
+                    className={`w-full flex items-start text-left gap-4 p-6 rounded-xl border transition-all duration-300 ${activeTab === t.id
+                      ? 'bg-violet-50 border-violet-200 shadow-md transform scale-[1.02]'
+                      : 'bg-white border-slate-100 hover:bg-slate-50'
+                      }`}
+                  >
+                    <div className={`p-3 rounded-lg ${activeTab === t.id ? 'bg-violet-100' : 'bg-slate-100'}`}>
+                      <t.icon className={`w-6 h-6 ${activeTab === t.id ? 'text-violet-600' : 'text-slate-500'}`} />
+                    </div>
+                    <div>
+                      <h4 className={`text-lg font-bold ${activeTab === t.id ? 'text-violet-900' : 'text-slate-700'}`}>{t.label}</h4>
+                      <p className="text-slate-500 mt-1">{t.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-         </div>
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-tr from-violet-600/20 to-blue-500/20 rounded-3xl blur-2xl" />
+              <div className="relative bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-800 aspect-square flex flex-col items-center justify-center text-center space-y-6">
+                <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center">
+                  {activeTab === 'students' && <GraduationCap className="w-10 h-10 text-violet-400" />}
+                  {activeTab === 'business' && <Building2 className="w-10 h-10 text-blue-400" />}
+                  {activeTab === 'creators' && <Book className="w-10 h-10 text-amber-400" />}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">
+                    {activeTab === 'students' ? 'A+ Papers in Minutes' : activeTab === 'business' ? 'Close Deals Faster' : 'Publish Bestsellers'}
+                  </h3>
+                  <p className="text-slate-400 max-w-xs mx-auto">
+                    Stop staring at a blank page. Let our AI handle the formatting, citations, and structure so you can focus on the ideas.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-2 h-2 rounded-full bg-slate-700" />
+                  <div className="w-2 h-2 rounded-full bg-slate-700" />
+                  <div className="w-12 h-2 rounded-full bg-violet-500" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-       {/* Upgrade Modal for Pro Features */}
-       {showUpgradeModal && (
+      {/* Final CTA + Open Source Section */}
+      <div className="py-20 px-4 bg-white">
+        <div className="max-w-3xl mx-auto text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-sm text-slate-600">
+            <Github className="w-4 h-4" />
+            Open-Core — MIT Licensed
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
+            Run it yourself or use the managed API
+          </h2>
+          <p className="text-slate-600 text-lg leading-relaxed">
+            Self-host the open-source core for free with your own API keys, or use our managed service and pay only $0.04 per document — no infrastructure headaches.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={() => navigate('/auth')}
+              className="h-12 px-8 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold shadow-lg shadow-violet-500/25"
+            >
+              Start free — 3 PDFs on us <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+            <a href="https://github.com/sarathoff/hug-pdf" target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="h-12 px-8 rounded-xl font-semibold border-slate-200 text-slate-700 hover:bg-slate-50 w-full sm:w-auto">
+                <Github className="mr-2 w-4 h-4" />
+                View on GitHub
+              </Button>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Upgrade Modal for Pro Features */}
+      {showUpgradeModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
             <button
@@ -444,7 +558,7 @@ const HomePage = () => {
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-2">Unlock Pro Features</h3>
               <p className="text-slate-600 mb-6">Upgrade to access Research Mode and E-book generation.</p>
-              
+
               <div className="space-y-4 mb-6">
                 <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-lg">
                   <Search className="w-5 h-5 text-violet-600" />
@@ -514,9 +628,9 @@ const HomePage = () => {
 
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setShowResumeOptimizerModal(false)} className="flex-1">Cancel</Button>
-                <Button 
-                  onClick={handleOptimizeResume} 
-                  disabled={!resumeFile || optimizerLoading} 
+                <Button
+                  onClick={handleOptimizeResume}
+                  disabled={!resumeFile || optimizerLoading}
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
                 >
                   {optimizerLoading ? 'Optimizing...' : 'Optimize'}

@@ -484,7 +484,7 @@ Async PDF generation with webhook notifications.
 {
   "job_id": "uuid",
   "status": "completed",
-  "pdf_url": "https://cdn.hugpdf.com/documents/xxx.pdf"
+  "pdf_url": "https://cdn.hugpdf.app/documents/xxx.pdf"
 }
 ```
 
@@ -503,8 +503,8 @@ Official SDKs coming soon:
 
 ## Support
 
-- **Documentation:** https://hugpdf.com/developer
-- **Email:** support@hugpdf.com
+- **Documentation:** https://hugpdf.app/developer
+- **Email:** support@hugpdf.app
 - **GitHub:** https://github.com/hugpdf/api-issues
 - **Discord:** https://discord.gg/hugpdf
 
