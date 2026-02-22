@@ -88,14 +88,23 @@ class APIKeyService:
             # Look up in database
             result = self.supabase.table('api_keys').select('*').eq('key_hash', key_hash).eq('is_active', True).execute()
             
-            logger.info(f"Database query result: {result.data if result else 'None'}")
-            
             if not result.data:
-                logger.warning(f"No API key found for hash: {key_hash}")
+                logger.warning(f"No API key found in database for hash: {key_hash[:10]}...")
                 return None
             
             key_data = result.data[0]
-            logger.info(f"API key validated successfully: {key_data['name']}")
+            
+            # Check if key is active (though already filtered in query, extra safety/logging)
+            if not key_data.get('is_active', False):
+                logger.warning(f"API key '{key_data['name']}' ({key_data['id']}) is marked as inactive")
+                return None
+            
+            # Check request limits
+            if key_data['requests_count'] >= key_data['requests_limit']:
+                logger.warning(f"API key '{key_data['name']}' has exceeded its request limit: {key_data['requests_count']}/{key_data['requests_limit']}")
+                # We return it anyway, the rate limiter in server.py will handle the block
+            
+            logger.info(f"API key validated successfully: {key_data['name']} (User: {key_data['user_id']})")
             
             # Update last used timestamp
             self.supabase.table('api_keys').update({

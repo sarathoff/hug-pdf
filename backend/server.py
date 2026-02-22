@@ -119,17 +119,11 @@ except Exception as e:
 # --- App Setup ---
 app = FastAPI(title="HugPDF API", version="2.0.0")
 
-# CORS
-origins_str = os.environ.get('CORS_ORIGINS', '*')
-if origins_str == '*':
-    origins = ["*"]
-else:
-    origins = [o.strip() for o in origins_str.split(',') if o.strip()]
-
+# CORS - Relaxed for API access
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=origins,
+    allow_credentials=False, # Must be False when allow_origins=["*"]
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
