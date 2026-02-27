@@ -35,7 +35,11 @@ services:
         sync: false
       - key: DODO_PAYMENTS_PUBLIC_KEY
         sync: false
-      - key: JWT_SECRET_KEY
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: CORS_ORIGINS
         sync: false

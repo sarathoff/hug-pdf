@@ -29,14 +29,17 @@ auth_service = AuthService()
 async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
     """Get current user from JWT token using Supabase for persistence (Shared Dependency)"""
     if not authorization or not authorization.startswith('Bearer '):
+        logger.debug("get_current_user: No Bearer token in Authorization header")
         return None
     
     token = authorization.replace('Bearer ', '')
     payload = auth_service.verify_token(token)
     if not payload:
+        logger.warning("get_current_user: Token verification FAILED — check SUPABASE_JWT_SECRET env var")
         return None
         
     if not supabase:
+        logger.error("get_current_user: Supabase client is None — check SUPABASE_URL and SUPABASE_KEY env vars")
         return None
         
     # Check DB
