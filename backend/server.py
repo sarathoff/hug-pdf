@@ -657,6 +657,13 @@ async def payment_success(plan: str, user_id: str, session_id: Optional[str] = N
         
         logger.info(f"Updated user {user_id}: credits={new_total_credits}, plan={final_plan}")
         
+        return {
+            "success": True, 
+            "message": "Payment verified (Simplified)",
+            "credits_added": credits,
+            "plan": final_plan
+        }
+        
     return {"success": True, "message": "Payment verified (Simplified)"}
 
 
