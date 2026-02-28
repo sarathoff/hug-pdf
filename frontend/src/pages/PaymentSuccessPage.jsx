@@ -257,16 +257,8 @@ const PaymentSuccessPage = () => {
           Payment Successful!
         </h1>
         <p className="text-lg text-gray-600 mb-8">
-          Your account has been credited with <span className="font-bold text-blue-600">{credits || 0} credits</span>.
+          Thank you for your purchase. Your account has been updated.
         </p>
-
-        {/* Plan Info */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <p className="text-sm text-gray-500 mb-2">Active Plan</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
-          </p>
-        </div>
 
         {/* Actions */}
         <div className="space-y-3">
