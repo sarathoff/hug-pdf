@@ -313,8 +313,9 @@ async def create_api_key(
         name = request.get('name', 'My API Key')
         tier = request.get('tier', 'free')  # Default to free tier
         
-        # Use 'id' field from current_user (Supabase auth users have 'id' field)
-        user_id = current_user.get('id') or current_user.get('user_id')
+        # Always use 'user_id' (Supabase Auth UUID), NOT 'id' (users table internal PK)
+        # current_user is a row from the users table: {id (internal PK), user_id (auth UUID), ...}
+        user_id = current_user.get('user_id')
         if not user_id:
             raise HTTPException(status_code=500, detail="User ID not found in token")
         
@@ -346,7 +347,7 @@ async def list_api_keys(current_user: dict = Depends(get_current_user)):
         supabase = get_supabase_admin()
         api_key_service = get_api_key_service(supabase)
         
-        user_id = current_user.get('id') or current_user.get('user_id')
+        user_id = current_user.get('user_id')  # Auth UUID, not internal PK
         keys = api_key_service.get_user_api_keys(user_id)
         return {"keys": keys}
         
@@ -370,7 +371,7 @@ async def revoke_api_key(
         supabase = get_supabase_admin()
         api_key_service = get_api_key_service(supabase)
         
-        user_id = current_user.get('id') or current_user.get('user_id')
+        user_id = current_user.get('user_id')  # Auth UUID, not internal PK
         success = api_key_service.revoke_api_key(key_id, user_id)
         
         if not success:
