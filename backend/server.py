@@ -420,14 +420,16 @@ async def generate_pdf_api(
         # Get Supabase client
         supabase = get_supabase_admin()
         
-        # Check user credits
-        user_response = supabase.table('users').select('credits, plan').eq('user_id', user_id).single().execute()
+        # Check user credits — use list select (avoid .single() which throws PGRST116 on 0 rows)
+        logger.info(f"Looking up user in 'users' table with user_id={user_id}")
+        user_response = supabase.table('users').select('credits, plan').eq('user_id', user_id).execute()
         
-        if not user_response.data:
-            raise HTTPException(status_code=404, detail="User not found")
+        if not user_response.data or len(user_response.data) == 0:
+            logger.error(f"User not found in 'users' table for user_id={user_id}. This API key may reference a user_id that doesn't exist in the users table.")
+            raise HTTPException(status_code=404, detail=f"User not found. user_id={user_id} has no matching record in users table.")
         
-        user_credits = user_response.data.get('credits', 0)
-        user_plan = user_response.data.get('plan', 'free')
+        user_credits = user_response.data[0].get('credits', 0)
+        user_plan = user_response.data[0].get('plan', 'free')
         
         # Check if user has credits
         if user_credits < 1:
