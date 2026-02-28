@@ -30,11 +30,11 @@ const PricingPage = () => {
         {
           id: 'credit_topup',
           name: 'Credit Top-Up',
-          price: 2,
+          price: 20,
           billing: 'one-time',
-          credits: 20,
+          credits: 100,
           popular: true,
-          features: ['20 Credits added instantly', 'Unlocks Research & E-book modes', 'Removes Watermarks', 'Never expires', 'One-time payment']
+          features: ['100 Credits added instantly', 'Generate up to 100 PDFs', 'Research & E-book modes unlocked', 'Credits never expire', 'One-time payment — no subscription']
         }
       ]);
     }

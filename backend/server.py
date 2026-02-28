@@ -439,7 +439,8 @@ async def generate_pdf_api(
             )
         
         # Determine tier based on plan
-        tier = 'pro' if user_credits > 5 or user_plan in ['pro', 'on_demand'] else 'free'
+        # Credit topup buyers use Flash (sustainable cost). Only subscription plans get Pro model.
+        tier = 'pro' if user_plan in ['pro', 'on_demand'] else 'free'
         
         # Initialize services
         gemini_service = GeminiService()
@@ -564,7 +565,7 @@ async def payment_success(plan: str, user_id: str, session_id: Optional[str] = N
     logger.info(f"Processing payment success for {user_id} plan {plan}")
     
     # Update Supabase
-    credits = 20 if plan == 'credit_topup' else 50
+    credits = 100 if plan == 'credit_topup' else 50
     admin = get_supabase_admin()
     if admin:
         u = admin.table("users").select("*").eq("user_id", user_id).execute().data[0]
