@@ -126,9 +126,30 @@ const EditorPage = () => {
     const skipGeneration = location.state?.skipGeneration;
     const initialPrompt = location.state?.initialPrompt;
     const pptConfig = location.state?.pptConfig;
+    const fromDashboard = location.state?.fromDashboard;
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
+        // If navigating from Dashboard ("Continue" button), restore that session directly
+        if (fromDashboard && location.state?.sessionId) {
+            console.log('Restoring session from Dashboard:', location.state.sessionId);
+            localStorage.removeItem('hugpdf_sessionId');
+            localStorage.removeItem('hugpdf_messages');
+            localStorage.removeItem('hugpdf_htmlContent');
+            localStorage.removeItem('hugpdf_latexContent');
+            localStorage.removeItem('hugpdf_mode');
+            setSessionId(location.state.sessionId);
+            if (location.state.messages?.length > 0) setMessages(location.state.messages);
+            if (location.state.initialLatex) {
+                setLatexContent(location.state.initialLatex);
+                setHtmlContent(location.state.initialLatex);
+            }
+            if (location.state.mode) setMode(location.state.mode);
+            initialized.current = true;
+            if (window.innerWidth >= 768) setActiveTab('preview');
+            return;
+        }
+
         // CHECK FOR NEW INTENT:
         // If we have fresh content/prompt/config from navigation (Homepage), 
         // we should START FRESH and ignore/clear any old session.

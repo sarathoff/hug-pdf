@@ -37,7 +37,6 @@ async def generate_initial(
         if current_user:
             from backend.core.deps import get_supabase_admin
             credit_service = CreditService(get_supabase_admin())
-            # Check if user has credits (will raise 402 if not)
             has_credit, msg = credit_service.check_credit_available(current_user['user_id'], 'pdf')
             if not has_credit:
                 raise HTTPException(status_code=402, detail=msg)
@@ -50,12 +49,39 @@ async def generate_initial(
         
         # Deduct credits
         if current_user:
-             from backend.core.deps import get_supabase_admin
-             credit_service = CreditService(get_supabase_admin())
-             credit_service.deduct_credit(current_user['user_id'], 'pdf', f"Generated {request.mode} document")
-             
+            from backend.core.deps import get_supabase_admin
+            credit_service = CreditService(get_supabase_admin())
+            credit_service.deduct_credit(current_user['user_id'], 'pdf', f"Generated {request.mode} document")
+        
+        # --- Persist session to Supabase ---
+        import uuid
+        from datetime import datetime, timezone
+        session_id = str(uuid.uuid4())
+        title = (request.prompt[:60] + '…') if len(request.prompt) > 60 else request.prompt
+        initial_messages = [
+            {"role": "user", "content": request.prompt},
+            {"role": "assistant", "content": result['message']}
+        ]
+
+        if current_user:
+            try:
+                from backend.core.deps import get_supabase_admin
+                supabase = get_supabase_admin()
+                supabase.table('sessions').insert({
+                    'session_id': session_id,
+                    'user_id': current_user['user_id'],
+                    'title': title,
+                    'messages': initial_messages,
+                    'current_latex': result.get('latex', ''),
+                    'mode': request.mode or 'normal',
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                }).execute()
+                logger.info(f"Session {session_id} saved for user {current_user['user_id']}")
+            except Exception as db_err:
+                logger.warning(f"Failed to save session to DB (non-fatal): {db_err}")
+
         return GenerateInitialResponse(
-            session_id="new_session", # In real app, create session in DB
+            session_id=session_id,
             html_content=result['html'],
             latex_content=result['latex'],
             message=result['message'],
@@ -64,6 +90,7 @@ async def generate_initial(
     except Exception as e:
         logger.exception(f"Error in generate_initial: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
@@ -78,6 +105,25 @@ async def chat(
             current_latex=request.current_latex if hasattr(request, 'current_latex') else None,
             mode=request.mode
         )
+
+        # --- Update session in Supabase ---
+        if current_user and request.session_id and request.session_id != 'new_session':
+            try:
+                from backend.core.deps import get_supabase_admin
+                supabase = get_supabase_admin()
+                existing = supabase.table('sessions').select('messages').eq('session_id', request.session_id).execute()
+                prev_messages = existing.data[0]['messages'] if existing.data else []
+                updated_messages = prev_messages + [
+                    {"role": "user", "content": request.message},
+                    {"role": "assistant", "content": result['message']}
+                ]
+                supabase.table('sessions').update({
+                    'messages': updated_messages,
+                    'current_latex': result.get('latex', ''),
+                }).eq('session_id', request.session_id).execute()
+            except Exception as db_err:
+                logger.warning(f"Failed to update session {request.session_id} (non-fatal): {db_err}")
+
         return ChatResponse(
             html_content=result['html'],
             latex_content=result['latex'],
@@ -85,6 +131,7 @@ async def chat(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 class ModifyLatexRequest(BaseModel):
     session_id: Optional[str] = None
@@ -104,9 +151,8 @@ async def modify_latex(
     gemini_service: GeminiService = Depends(get_gemini_service)
 ):
     try:
-        # Check permissions if mode is research/ebook
         if request.mode in ['research', 'ebook'] and not current_user:
-             raise HTTPException(status_code=401, detail="Authentication required")
+            raise HTTPException(status_code=401, detail="Authentication required")
 
         result_latex = gemini_service.modify_latex(
             request.current_latex,

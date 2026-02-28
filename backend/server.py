@@ -501,6 +501,69 @@ async def generate_pdf_api(
 
 
 # ============================================================================
+# Sessions API — Dashboard: list & resume past PDFs
+# ============================================================================
+
+@api_router.get("/sessions")
+async def list_sessions(current_user: dict = Depends(get_current_user)):
+    """Return the 30 most recent sessions for the authenticated user."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        supabase = get_supabase_admin()
+        result = (
+            supabase.table("sessions")
+            .select("session_id, title, mode, created_at")
+            .eq("user_id", current_user["user_id"])
+            .order("created_at", desc=True)
+            .limit(30)
+            .execute()
+        )
+        return {"sessions": result.data or []}
+    except Exception as e:
+        logger.error(f"Error listing sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/sessions/{session_id}")
+async def get_session(session_id: str, current_user: dict = Depends(get_current_user)):
+    """Return full session data (messages, latex, mode) for resuming in the editor."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        supabase = get_supabase_admin()
+        result = (
+            supabase.table("sessions")
+            .select("session_id, title, mode, messages, current_latex, created_at")
+            .eq("session_id", session_id)
+            .eq("user_id", current_user["user_id"])
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return result.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a session owned by the authenticated user."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        supabase = get_supabase_admin()
+        supabase.table("sessions").delete().eq("session_id", session_id).eq("user_id", current_user["user_id"]).execute()
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error deleting session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # PPT Generation (Legacy/Server kept)
 # ============================================================================
 @api_router.post("/generate-ppt", response_model=GeneratePPTResponse)

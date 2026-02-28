@@ -120,9 +120,9 @@ const Header = () => {
                                             </div>
                                         </DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => navigate('/editor')}>
+                                        <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                                             <LayoutDashboard className="mr-2 h-4 w-4" />
-                                            <span>Dashboard</span>
+                                            <span>My Documents</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => navigate('/developer')}>
                                             <Code className="mr-2 h-4 w-4" />
@@ -222,10 +222,10 @@ const Header = () => {
                                     <Button
                                         variant="outline"
                                         className="text-sm h-9 border-slate-200"
-                                        onClick={() => { navigate('/editor'); setIsMobileMenuOpen(false); }}
+                                        onClick={() => { navigate('/dashboard'); setIsMobileMenuOpen(false); }}
                                     >
                                         <LayoutDashboard className="mr-2 h-4 w-4" />
-                                        Dashboard
+                                        My Docs
                                     </Button>
                                     <Button
                                         variant="outline"

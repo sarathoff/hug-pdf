@@ -21,6 +21,7 @@ import DeveloperPage from "./pages/DeveloperPage";
 import ApiDocsPage from "./pages/ApiDocsPage";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
+import DashboardPage from "./pages/DashboardPage";
 import Layout from "./components/Layout";
 import CookieConsent from "./components/CookieConsent";
 
@@ -58,6 +59,7 @@ function App() {
             <Route path="/api-docs" element={<Layout><ApiDocsPage /></Layout>} />
             <Route path="/blog" element={<Layout><BlogPage /></Layout>} />
             <Route path="/blog/:slug" element={<Layout><BlogPostPage /></Layout>} />
+            <Route path="/dashboard" element={<Layout><DashboardPage /></Layout>} />
 
             {/* Pages with Custom/Standalone Layout */}
             <Route path="/editor" element={<EditorPage />} />
