@@ -182,7 +182,7 @@ const PaymentSuccessPage = () => {
       setError('Invalid payment link. Missing required information.');
       setLoading(false);
     }
-  }, [searchParams, handlePaymentSuccess, token, loading]);
+  }, [searchParams, handlePaymentSuccess, token]); // Note: `loading` intentionally omitted to prevent re-triggering
 
 
 

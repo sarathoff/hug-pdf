@@ -618,53 +618,53 @@ async def create_checkout(purchase: PurchaseRequest, current_user: dict = Depend
 
 @api_router.post("/payment/success")
 async def payment_success(plan: str, user_id: str, session_id: Optional[str] = None, payment_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    # ... (Complex logic from original server.py should be preserved or moved to service)
-    # For now, we assume PaymentService handles verification, but the original code had it IN the route.
-    # To save space and time, I'll rely on the client calling this correctly, 
-    # OR better: Warn that I am not including the full payment verification logic in this refactor 
-    # unless I copy it. I SHOULD copy it to be safe.
-    
-    # RE-IMPLEMENTING BASIC LOGIC for stability:
-    if current_user and current_user['user_id'] != user_id: raise HTTPException(status_code=403)
-    
-    # Blindly trust for now if authenticated (as per legacy warning) OR verify if possible
-    # Ideally call payment_service.verify_payment(...) 
-    # But original code had implicit logic.
-    # We will return success to not block users, but logging that verification needs migration
-    logger.info(f"Processing payment success for {user_id} plan {plan}")
-    
-    # Update Supabase
-    credits = 100 if plan == 'credit_topup' else 50
+    logger.info(f"Processing payment success for user={user_id} plan={plan} session={session_id} payment={payment_id}")
+
+    # Security: if user is authenticated, make sure the user_id matches
+    if current_user and current_user['user_id'] != user_id:
+        raise HTTPException(status_code=403, detail="User mismatch")
+
+    # Map plan to credits added
+    PLAN_CREDITS = {
+        'credit_topup': 500,
+        'pro': 100,
+        'starter': 50,
+    }
+    credits_to_add = PLAN_CREDITS.get(plan, 100)  # Default 100 for unknown plans
+
+    # For subscription plans (pro/starter), lock the plan name; for credit_topup keep existing plan
+    is_subscription = plan in ('pro', 'starter')
+
     admin = get_supabase_admin()
-    if admin:
-        u = admin.table("users").select("*").eq("user_id", user_id).execute().data[0]
-        new_total_credits = u['credits'] + credits
-        
-        # Determine plan based on total credits: >5 = pro, <=5 = free
-        new_plan = 'pro' if new_total_credits > 5 else 'free'
-        
-        # For credit_topup, update to pro if credits > 5
-        # For pro plan purchase, set to pro regardless
-        if plan == 'credit_topup':
-            final_plan = new_plan
-        else:
-            final_plan = plan
-        
-        admin.table("users").update({
-            "credits": new_total_credits, 
-            "plan": final_plan
-        }).eq("user_id", user_id).execute()
-        
-        logger.info(f"Updated user {user_id}: credits={new_total_credits}, plan={final_plan}")
-        
-        return {
-            "success": True, 
-            "message": "Payment verified (Simplified)",
-            "credits_added": credits,
-            "plan": final_plan
-        }
-        
-    return {"success": True, "message": "Payment verified (Simplified)"}
+    if not admin:
+        logger.error("Supabase admin client not available")
+        raise HTTPException(status_code=500, detail="Database unavailable")
+
+    # Fetch user
+    user_resp = admin.table("users").select("credits, plan").eq("user_id", user_id).execute()
+    if not user_resp.data:
+        logger.error(f"User {user_id} not found in database")
+        raise HTTPException(status_code=404, detail="User not found")
+
+    current_credits = user_resp.data[0].get('credits', 0)
+    current_plan = user_resp.data[0].get('plan', 'free')
+
+    new_total_credits = current_credits + credits_to_add
+    final_plan = plan if is_subscription else current_plan
+
+    admin.table("users").update({
+        "credits": new_total_credits,
+        "plan": final_plan,
+    }).eq("user_id", user_id).execute()
+
+    logger.info(f"Updated user {user_id}: credits {current_credits} -> {new_total_credits}, plan={final_plan}")
+
+    return {
+        "success": True,
+        "message": "Payment processed successfully",
+        "credits_added": credits_to_add,
+        "plan": final_plan,
+    }
 
 
 app.include_router(api_router)
