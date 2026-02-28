@@ -425,9 +425,14 @@ async def generate_pdf_api(
         logger.info(f"Looking up user in 'users' table with user_id={user_id}")
         user_response = supabase.table('users').select('credits, plan').eq('user_id', user_id).execute()
         
+        # Fallback for legacy API keys that stored the internal 'id' instead of 'user_id'
         if not user_response.data or len(user_response.data) == 0:
-            logger.error(f"User not found in 'users' table for user_id={user_id}. This API key may reference a user_id that doesn't exist in the users table.")
-            raise HTTPException(status_code=404, detail=f"User not found. user_id={user_id} has no matching record in users table.")
+            logger.info(f"User not found by user_id, trying fallback lookup by internal id={user_id}")
+            user_response = supabase.table('users').select('credits, plan').eq('id', user_id).execute()
+
+        if not user_response.data or len(user_response.data) == 0:
+            logger.error(f"User not found in 'users' table for user_id/id={user_id}. This API key may reference a user that doesn't exist.")
+            raise HTTPException(status_code=401, detail=f"Unauthorized: Invalid user account associated with this API key. Please generate a new key.")
         
         user_credits = user_response.data[0].get('credits', 0)
         user_plan = user_response.data[0].get('plan', 'free')

@@ -77,12 +77,12 @@ class CreditService:
         """Get current credit status for user"""
         try:
             response = self.db.table("users").select("*").eq("user_id", user_id).execute()
-            
+
             if not response.data:
                 return None
-            
+
             user = response.data[0]
-            
+
             # Check if credits need monthly reset
             reset_date = user.get('credits_reset_date')
             if reset_date and datetime.now() > datetime.fromisoformat(reset_date):
@@ -91,7 +91,7 @@ class CreditService:
                 # Fetch updated data
                 response = self.db.table("users").select("*").eq("user_id", user_id).execute()
                 user = response.data[0]
-            
+
             return {
                 'plan': user['plan'],
                 'research_credits': user.get('research_credits', 0),
@@ -99,48 +99,44 @@ class CreditService:
                 'ebook_credits': user.get('ebook_credits', 0),
                 'pdf_downloads': user.get('pdf_downloads', 0),
                 'pdf_limit': self.PLAN_LIMITS[user['plan']]['pdf_limit'],
-                'credits_reset_date': user.get('credits_reset_date')
+                'credits_reset_date': user.get('credits_reset_date'),
+                'credits': user.get('credits', 0)
             }
         except Exception as e:
             logger.error(f"Error getting user credits: {str(e)}")
             return None
-    
+
     def check_credit_available(self, user_id: str, credit_type: str) -> tuple[bool, str]:
         """
         Check if user has credits available for a feature
-        
+
         Args:
             user_id: User ID
             credit_type: 'research', 'diagram', 'ebook', or 'pdf'
-        
+
         Returns:
             (has_credit: bool, message: str)
         """
         credits = self.get_user_credits(user_id)
-        
+
         if not credits:
             return False, "User not found"
-        
+
         plan = credits['plan']
-        
+
         # Check unlimited features
         if credit_type == 'diagram' and plan == 'power':
             return True, "Unlimited diagrams"
-        
-        if credit_type == 'pdf' and plan in ['pro', 'power']:
-            return True, "Unlimited PDFs"
-        
+
         # Check credit limits
-        credit_field = f"{credit_type}_credits" if credit_type != 'pdf' else 'pdf_downloads'
-        current_value = credits.get(credit_field, 0)
-        
         if credit_type == 'pdf':
-            limit = credits['pdf_limit']
-            if limit == -1:  # Unlimited
-                return True, "Unlimited PDFs"
-            if current_value >= limit:
-                return False, f"PDF download limit reached ({limit}/month). Upgrade to Pro for unlimited PDFs."
+            current_credits = credits.get('credits', 0)
+            if current_credits <= 0:
+                return False, "Insufficient credits. Please upgrade or buy more credits."
+            return True, "Credit available"
         else:
+            credit_field = f"{credit_type}_credits"
+            current_value = credits.get(credit_field, 0)
             if current_value <= 0:
                 upgrade_messages = {
                     'research': "No research credits remaining. Upgrade to Pro (15/mo) or Power (50/mo) for more.",
@@ -148,50 +144,51 @@ class CreditService:
                     'ebook': "E-book mode requires Pro (2/mo) or Power (10/mo) plan."
                 }
                 return False, upgrade_messages.get(credit_type, "Insufficient credits")
-        
+
         return True, "Credit available"
-    
+
     def deduct_credit(self, user_id: str, credit_type: str, reason: str = "") -> bool:
         """
         Deduct one credit from user's account
-        
+
         Returns:
             True if successful, False otherwise
         """
         try:
             credits = self.get_user_credits(user_id)
-            
+
             if not credits:
                 return False
-            
+
             plan = credits['plan']
-            
+
             # Don't deduct for unlimited features
             if credit_type == 'diagram' and plan == 'power':
                 return True
-            if credit_type == 'pdf' and plan in ['pro', 'power']:
-                return True
-            
+
             # Deduct credit
             if credit_type == 'pdf':
-                new_value = credits['pdf_downloads'] + 1
-                update_field = 'pdf_downloads'
+                current_credits = credits.get('credits', 0)
+                if current_credits <= 0:
+                    return False
+                new_value = current_credits - 1
+                update_field = 'credits'
             else:
                 credit_field = f"{credit_type}_credits"
                 current_credits = credits.get(credit_field, 0)
-                
+
                 if current_credits <= 0:
                     return False
-                
+
                 new_value = current_credits - 1
                 update_field = credit_field
-            
+
             # Update database
             self.db.table("users").update({
                 update_field: new_value,
                 'updated_at': datetime.now().isoformat()
             }).eq("user_id", user_id).execute()
-            
+
             # Log transaction
             self.db.table("credit_transactions").insert({
                 "user_id": user_id,
@@ -200,14 +197,13 @@ class CreditService:
                 "transaction_type": "deduct",
                 "reason": reason or f"Used {credit_type} feature"
             }).execute()
-            
+
             logger.info(f"Deducted {credit_type} credit from user {user_id}. New value: {new_value}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error deducting credit: {str(e)}")
-            return False
-    
+            return False    
     def reset_monthly_credits(self, user_id: str, plan: str):
         """Reset user's credits based on their plan (called monthly)"""
         try:
