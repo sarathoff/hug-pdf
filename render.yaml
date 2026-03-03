@@ -29,6 +29,10 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+      - key: PEXELS_API_KEY
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
       - key: PAYMENT_TEST_MODE
         value: "false"
     healthCheckPath: /api/

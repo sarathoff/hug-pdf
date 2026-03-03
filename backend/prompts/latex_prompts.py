@@ -7,7 +7,7 @@ BASE_INSTRUCTIONS = """
 CRITICAL LATEX REQUIREMENTS:
 1. Use ONLY standard packages (graphicx, hyperref, geometry, lmodern)
 2. NO custom fonts requiring external packages
-3. Use \\includegraphics[width=0.7\\textwidth]{URL} for images
+3. Use \\includegraphics[width=0.7\\textwidth]{{URL}} for images
 4. Return ONLY raw LaTeX code (no markdown, no explanations)
 """
 

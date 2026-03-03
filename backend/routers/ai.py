@@ -41,10 +41,13 @@ async def generate_initial(
             if not has_credit:
                 raise HTTPException(status_code=402, detail=msg)
             
+        # Use 'plan' field (not 'tier') from users table; map free→starter for model selection
+        user_plan = current_user.get('plan', 'starter') if current_user else 'starter'
+        tier = 'pro' if user_plan in ('pro', 'power') else 'starter'
         result = gemini_service.generate_html_from_prompt(
             request.prompt, 
             mode=request.mode, 
-            tier=current_user.get('tier', 'starter') if current_user else 'starter'
+            tier=tier
         )
         
         # Deduct credits
@@ -87,9 +90,11 @@ async def generate_initial(
             message=result['message'],
             credits_remaining=10 # fetch actual
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.exception(f"Error in generate_initial: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error in generate_initial: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 @router.post("/chat", response_model=ChatResponse)
