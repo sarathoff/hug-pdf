@@ -62,9 +62,8 @@ async def verify_api_key(authorization: str = Header(None)):
     
     api_key = authorization.replace("Bearer ", "")
     
-    # Get services
-    supabase = get_supabase_admin()
-    api_key_service = get_api_key_service(supabase)
+    # Always use admin client for API key validation (bypasses RLS on api_keys table)
+    api_key_service = get_api_key_service(get_supabase_admin())
     rate_limiter = get_rate_limiter()
     
     # Validate API key
@@ -170,22 +169,44 @@ async def get_curated_images(per_page: int = 15, page: int = 1):
 
 @api_router.post("/upload-image")
 async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """
+    Upload an image. Stores in Supabase Storage (persistent) with fallback to local disk.
+    """
     try:
+        file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else 'jpg'
+        if file_ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+            file_ext = 'jpg'
+        unique_name = f"{uuid.uuid4()}.{file_ext}"
+        content = await file.read()
+
+        # Try Supabase Storage first (persistent across deploys)
+        supabase_admin_client = get_supabase_admin()
+        storage_path = f"uploads/{unique_name}"
+        try:
+            mime = f"image/{file_ext}" if file_ext not in ('jpg', 'jpeg') else "image/jpeg"
+            supabase_admin_client.storage.from_("user-images").upload(
+                storage_path, content, {"content-type": mime}
+            )
+            public_url = supabase_admin_client.storage.from_("user-images").get_public_url(storage_path)
+            logger.info(f"Image uploaded to Supabase Storage: {storage_path}")
+            return {"url": public_url, "filename": file.filename, "storage": "supabase"}
+        except Exception as storage_err:
+            logger.warning(f"Supabase Storage upload failed, falling back to local disk: {storage_err}")
+
+        # Fallback: local disk (dev / offline)
         temp_dir = ROOT_DIR / "temp_uploads"
         temp_dir.mkdir(exist_ok=True)
-        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-        unique_name = f"{uuid.uuid4()}.{file_ext}"
         filepath = temp_dir / unique_name
-        content = await file.read()
         with open(filepath, 'wb') as f:
             f.write(content)
         backend_url = os.environ.get('BACKEND_URL', 'http://localhost:8000')
-        return {"url": f"{backend_url}/api/temp-images/{unique_name}", "filename": file.filename}
+        return {"url": f"{backend_url}/api/temp-images/{unique_name}", "filename": file.filename, "storage": "local"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/temp-images/{filename}")
 async def serve_temp_image(filename: str):
+    """Serve locally stored images (dev fallback)."""
     filepath = ROOT_DIR / "temp_uploads" / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Image not found")
@@ -620,13 +641,16 @@ async def create_checkout(purchase: PurchaseRequest, current_user: dict = Depend
 async def payment_success(plan: str, user_id: str, session_id: Optional[str] = None, payment_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     logger.info(f"Processing payment success for user={user_id} plan={plan} session={session_id} payment={payment_id}")
 
-    # Security: if user is authenticated, make sure the user_id matches
-    if current_user and current_user['user_id'] != user_id:
+    # Security: must be authenticated
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    # And the authenticated user must match the user_id in the request
+    if current_user['user_id'] != user_id:
         raise HTTPException(status_code=403, detail="User mismatch")
 
     # Map plan to credits added
     PLAN_CREDITS = {
-        'credit_topup': 500,
+        'credit_topup': 50,
         'pro': 100,
         'starter': 50,
     }
@@ -667,4 +691,139 @@ async def payment_success(plan: str, user_id: str, session_id: Optional[str] = N
     }
 
 
+# ============================================================================
+# Templates API — Create & reuse PDF prompt templates
+# ============================================================================
+
+@api_router.get("/templates")
+async def list_templates(current_user: dict = Depends(get_current_user)):
+    """Return all templates for the authenticated user."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        supabase = get_supabase_admin()
+        result = (
+            supabase.table("templates")
+            .select("id, name, description, category, prompt, variables, created_at, updated_at")
+            .eq("user_id", current_user["user_id"])
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return {"templates": result.data or []}
+    except Exception as e:
+        logger.error(f"Error listing templates: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/templates")
+async def create_template(request: dict, current_user: dict = Depends(get_current_user)):
+    """Create a new prompt template."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        name = request.get("name", "").strip()
+        prompt = request.get("prompt", "").strip()
+        if not name or not prompt:
+            raise HTTPException(status_code=400, detail="name and prompt are required")
+
+        # Auto-extract {{variable}} placeholders from the prompt
+        import re
+        variables = list(dict.fromkeys(re.findall(r'\{\{(\w+)\}\}', prompt)))
+
+        supabase = get_supabase_admin()
+        result = supabase.table("templates").insert({
+            "user_id": current_user["user_id"],
+            "name": name,
+            "description": request.get("description", ""),
+            "category": request.get("category", "general"),
+            "prompt": prompt,
+            "variables": variables,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Failed to create template")
+        return {"success": True, "template": result.data[0]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating template: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/templates/{template_id}")
+async def get_template(template_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a single template owned by the authenticated user."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        supabase = get_supabase_admin()
+        result = (
+            supabase.table("templates")
+            .select("*")
+            .eq("id", template_id)
+            .eq("user_id", current_user["user_id"])
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Template not found")
+        return result.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching template {template_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.put("/templates/{template_id}")
+async def update_template(template_id: str, request: dict, current_user: dict = Depends(get_current_user)):
+    """Update an existing template."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        import re
+        prompt = request.get("prompt", "")
+        variables = list(dict.fromkeys(re.findall(r'\{\{(\w+)\}\}', prompt))) if prompt else None
+
+        update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        for field in ("name", "description", "category", "prompt"):
+            if field in request:
+                update_data[field] = request[field]
+        if variables is not None:
+            update_data["variables"] = variables
+
+        supabase = get_supabase_admin()
+        result = (
+            supabase.table("templates")
+            .update(update_data)
+            .eq("id", template_id)
+            .eq("user_id", current_user["user_id"])
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Template not found")
+        return {"success": True, "template": result.data[0]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating template {template_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.delete("/templates/{template_id}")
+async def delete_template(template_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a template owned by the authenticated user."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        supabase = get_supabase_admin()
+        supabase.table("templates").delete().eq("id", template_id).eq("user_id", current_user["user_id"]).execute()
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error deleting template {template_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 app.include_router(api_router)
+
